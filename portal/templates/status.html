@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Upload Status{% endblock %}
+{% block content %}
+{% if not terminal %}<meta http-equiv="refresh" content="3">{% endif %}
+<section class="card status-page">
+<h1>{{ 'Holiday Calendar Job' if job.job_type == 'holiday' else ('Device Override Job' if job.job_type == 'device_override' else 'Attendance Job') }}</h1>
+<div class="pill {{ job.status|lower }}">{{ job.status }}</div>
+<p class="message">{{ job.message }}</p>
+<dl>
+  <dt>Job ID</dt><dd><code>{{ job.job_id }}</code></dd>
+  <dt>Type</dt><dd>{{ 'Holiday Calendar' if job.job_type == 'holiday' else ('Device Override' if job.job_type == 'device_override' else 'Attendance') }}</dd>
+  {% if job.attendance_date %}<dt>Date</dt><dd>{{ job.attendance_date }}</dd>{% endif %}
+  {% if job.serial_number %}<dt>Serial</dt><dd><code>{{ job.serial_number }}</code></dd>{% endif %}
+  {% if job.email_address %}<dt>Email Address</dt><dd>{{ job.email_address }}</dd>{% endif %}
+  {% if job.username %}<dt>Username</dt><dd>{{ job.username }}</dd>{% endif %}
+  {% if job.device_name %}<dt>Device</dt><dd>{{ job.device_name }}</dd>{% endif %}
+  {% if job.submitted_by %}<dt>User</dt><dd>{{ job.submitted_by }}</dd>{% endif %}
+  {% if job.holiday_count %}<dt>Holidays</dt><dd>{{ job.holiday_count }}</dd>{% endif %}
+  {% if job.absent_count is defined %}<dt>Absent emails</dt><dd>{{ job.absent_count }}</dd>{% endif %}
+  {% if job.absent_device_count is defined %}<dt>Resolved iPads</dt><dd>{{ job.absent_device_count }}</dd>{% endif %}
+  {% if job.present_count is defined %}<dt>Present</dt><dd>{{ job.present_count }}</dd>{% endif %}
+  {% if job.duplicate_count %}<dt>Duplicates removed</dt><dd>{{ job.duplicate_count }}</dd>{% endif %}
+  {% if job.archived_previous_file %}<dt>Previous backup</dt><dd><code>{{ job.archived_previous_file }}</code></dd>{% endif %}
+</dl>
+{% if not terminal %}<p class="hint">หน้านี้จะ refresh อัตโนมัติจน Importer ประมวลผลเสร็จ</p>{% endif %}
+{% if job.job_type == 'device_override' %}<a class="button-link" href="/device-override">Back to Device Override</a>{% else %}<a class="button-link" href="/">Back to Upload</a>{% endif %}
+</section>
+{% endblock %}

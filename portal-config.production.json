@@ -1,0 +1,29 @@
+{
+  "timezone": "Asia/Bangkok",
+  "listen_host": "127.0.0.1",
+  "listen_port": 8090,
+  "public_port": 8443,
+  "max_upload_bytes": 2097152,
+  "date_window": {
+    "past_days": 7,
+    "future_days": 30
+  },
+  "paths": {
+    "staging_dir": "/var/lib/harrow-timebase/portal-staging",
+    "queue_dir": "/var/lib/harrow-timebase/upload-queue",
+    "status_dir": "/var/lib/harrow-timebase/upload-status",
+    "archive_dir": "/opt/harrow-timebase/archive",
+    "master_cache_file": "/var/lib/harrow-timebase/public/master-serials.txt",
+    "audit_file": "/var/log/harrow-timebase/upload-audit.jsonl",
+    "holiday_file": "/var/lib/harrow-timebase/shared/holidays.csv",
+    "manual_override_file": "/var/lib/harrow-timebase/shared/manual-overrides.json"
+  },
+  "public_scheme": "https",
+  "reconcile_on_holiday_upload": true,
+  "device_query": {
+    "url": "http://127.0.0.1:8091",
+    "timeout_seconds": 45,
+    "minimum_query_length": 2,
+    "max_results": 50
+  }
+}

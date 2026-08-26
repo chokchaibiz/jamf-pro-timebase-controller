@@ -1,0 +1,22 @@
+[Unit]
+Description=Harrow Attendance Queue Importer
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=harrow-timebase
+Group=harrow-timebase
+EnvironmentFile=/etc/harrow-timebase/harrow-timebase.env
+ExecStart=/opt/harrow-timebase/venv/bin/python /opt/harrow-timebase/attendance_importer.py --config /etc/harrow-timebase/config.json --portal-config /etc/harrow-timebase/portal.json
+TimeoutStartSec=60min
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadOnlyPaths=/etc/harrow-timebase
+ReadWritePaths=/opt/harrow-timebase/attendance /opt/harrow-timebase/archive /var/lib/harrow-timebase /var/log/harrow-timebase

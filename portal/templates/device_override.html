@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Device Override{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Device Override</h1>
+    <p>ค้นหา iPad จาก Email Address ใน Jamf inventory แล้วกำหนดให้เป็น <strong>Out-Harrow</strong> แบบชั่วคราว</p>
+  </div>
+  <div class="user">User: <strong>{{ user }}</strong></div>
+</section>
+
+<section class="card override-info">
+  <div class="section-badge override">Manual Override</div>
+  <h2>ค้นหา Device จาก Email Address</h2>
+  <p class="lead">ค้นหา Jamf Pro แบบ Live เมื่อกด Search โดย Portal ไม่ได้รับ Jamf Client Secret และไม่ทำ Full Inventory Polling เป็นรอบ ๆ</p>
+  {% if search_state.ready %}
+    <p class="ok">✓ Live Jamf Device Query พร้อมใช้งาน</p>
+  {% else %}
+    <p class="warn">⚠ Device Query ยังไม่พร้อม: {{ search_state.error }}</p>
+  {% endif %}
+
+  <form method="get" action="/device-override" class="search-form">
+    <label>Email Address</label>
+    <div class="search-row">
+      <input type="search" name="q" value="{{ query }}" minlength="{{ minimum_query_length }}" placeholder="เช่น student001@harrowbangkok.th" required autocomplete="off">
+      <button class="primary" type="submit">Search Jamf</button>
+    </div>
+    <p class="hint">ระบบค้นหา <strong>Email Address แบบ Exact Match</strong> ผ่าน Jamf Pro API และกรองเฉพาะเครื่องใน Harrow-All-iPads เพื่อป้องกันการเลือก iPad ของนักเรียนผิดคน</p>
+  </form>
+</section>
+
+{% if query %}
+<section class="card">
+  <h2>Search Results</h2>
+  {% if results %}
+    <p class="lead">พบ {{ results|length }} รายการ เลือกเครื่องที่ถูกต้องก่อน Submit{% if search_mode %} <span class="subtext">({{ search_mode }})</span>{% endif %}</p>
+    <form action="/device-override/submit" method="post" onsubmit="return confirm('ยืนยันให้ iPad เครื่องที่เลือกเป็น Out-Harrow จนถึง 16:00?');">
+      <input type="hidden" name="form_token" value="{{ form_token }}">
+      <input type="hidden" name="search_email" value="{{ query|lower }}">
+      <div class="table-wrap">
+        <table class="device-table">
+          <thead><tr><th>Select</th><th>Email Address</th><th>Username</th><th>Device</th><th>Serial</th><th>Room</th><th>Model</th><th>Last Inventory</th></tr></thead>
+          <tbody>
+          {% for d in results %}
+            <tr>
+              <td><input type="radio" name="serial_number" value="{{ d.serial_number }}" required></td>
+              <td><strong>{{ d.email or '-' }}</strong></td>
+              <td>{{ d.username or '-' }}{% if d.real_name %}<div class="subtext">{{ d.real_name }}</div>{% endif %}</td>
+              <td>{{ d.device_name or '-' }}</td>
+              <td><code>{{ d.serial_number }}</code></td>
+              <td>{% if d.room == '200' %}<span class="pill out">200 / Out</span>{% elif d.room == '100' %}<span class="pill in">100 / In</span>{% else %}<span class="pill">{{ d.room or '-' }}</span>{% endif %}</td>
+              <td>{{ d.model or '-' }}</td>
+              <td class="subtext">{{ d.last_inventory or '-' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <label>Reason / Note <span class="hint">(optional)</span></label>
+      <input type="text" name="reason" maxlength="250" placeholder="เช่น Student left school early / manual exception">
+      <div class="override-warning">
+        เมื่อ Submit ระบบจะบันทึก Manual Override แล้ว Reconcile ทันที เครื่องจะคง <strong>Room=200 / Out-Harrow</strong> แม้ periodic reconcile ทำงาน และ override จะหมดอายุอัตโนมัติเวลา 16:00
+      </div>
+      <button class="danger" type="submit">Set Selected Device to Out-Harrow</button>
+    </form>
+  {% else %}
+    <p class="warn">ไม่พบ Device ที่ตรงกับ “{{ query }}” จาก Jamf Pro</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Active Manual Overrides</h2>
+  <p class="lead">รายการนี้ถูก Controller รวมเข้ากับ Attendance desired state จึงไม่ถูกเปลี่ยนกลับเป็น In-Harrow จนกว่าจะ Clear หรือถึง 16:00</p>
+  {% if active_overrides %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Email Address</th><th>Username</th><th>Device</th><th>Serial</th><th>Created</th><th>Expires</th><th>Reason</th><th></th></tr></thead>
+      <tbody>
+      {% for o in active_overrides %}
+        <tr>
+          <td><strong>{{ o.email_address or '-' }}</strong></td>
+          <td>{{ o.username or '-' }}</td>
+          <td>{{ o.device_name or '-' }}</td>
+          <td><code>{{ o.serial_number }}</code></td>
+          <td class="subtext">{{ o.created_at }}</td>
+          <td class="subtext">{{ o.expires_at }}</td>
+          <td>{{ o.reason or '-' }}</td>
+          <td>
+            <form action="/device-override/clear" method="post" onsubmit="return confirm('Clear override และให้ระบบคำนวณ Room จาก Attendance ใหม่?');">
+              <input type="hidden" name="form_token" value="{{ form_token }}">
+              <input type="hidden" name="serial_number" value="{{ o.serial_number }}">
+              <button class="small secondary" type="submit">Clear</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="hint">ไม่มี Manual Out-Harrow Override ที่กำลัง Active</p>
+  {% endif %}
+</section>
+
+<section class="card info">
+  <h2>Recommended Behavior</h2>
+  <ul>
+    <li>ใช้ TAB นี้สำหรับกรณีเฉพาะหน้า เช่น นักเรียนกลับก่อนเวลา, ต้องนำ iPad ออกจาก restriction ชั่วคราว หรือ Attendance ไม่ครอบคลุมเหตุการณ์ระหว่างวัน</li>
+    <li>ถ้าเป็น “นักเรียนขาดทั้งวัน” ให้ใช้ Absent Students CSV เป็นหลัก เพื่อให้ Attendance เป็น source of truth</li>
+    <li>Manual Override มีผลถึง 16:00 เท่านั้น และไม่แก้ข้อมูล Attendance CSV</li>
+    <li>Clear Override จะให้ Controller กลับไปตัดสิน Room จาก Attendance ปัจจุบันทันที</li>
+  </ul>
+</section>
+{% endblock %}

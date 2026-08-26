@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Harrow Attendance{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div><strong>Harrow TimeBase Upload</strong><span class="sub">TimeBase Controller</span></div>
+  <nav><a href="/">Upload</a><a href="/device-override">Device Override</a><a href="/history">History</a></nav>
+</header>
+<main class="container">{% block content %}{% endblock %}</main>
+<footer>Internal administration portal • Authenticated by Nginx</footer>
+</body>
+</html>

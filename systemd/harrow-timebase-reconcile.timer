@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodic Harrow TimeBase drift reconciliation
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=30min
+AccuracySec=30s
+RandomizedDelaySec=30s
+Persistent=false
+Unit=harrow-timebase-reconcile.service
+
+[Install]
+WantedBy=timers.target

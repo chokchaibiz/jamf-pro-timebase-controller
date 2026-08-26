@@ -1,0 +1,30 @@
+[Unit]
+Description=Harrow Jamf Device Query Broker
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=harrow-timebase
+Group=harrow-timebase
+WorkingDirectory=/opt/harrow-timebase
+EnvironmentFile=/etc/harrow-timebase/harrow-timebase.env
+EnvironmentFile=/var/lib/harrow-timebase/shared/internal-api.env
+Environment=HARROW_CONFIG=/etc/harrow-timebase/config.json
+Environment=PYTHONPATH=/opt/harrow-timebase
+ExecStart=/opt/harrow-timebase/venv/bin/uvicorn device_query_service:app --host 127.0.0.1 --port 8091 --workers 1
+Restart=on-failure
+RestartSec=3s
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadOnlyPaths=/opt/harrow-timebase /etc/harrow-timebase
+ReadWritePaths=/var/lib/harrow-timebase /var/log/harrow-timebase
+
+[Install]
+WantedBy=multi-user.target

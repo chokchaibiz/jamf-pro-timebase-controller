@@ -1,0 +1,30 @@
+[Unit]
+Description=Harrow Attendance Upload Portal
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=harrow-upload
+Group=harrow-upload
+WorkingDirectory=/opt/harrow-timebase/portal
+EnvironmentFile=/etc/harrow-timebase/portal.env
+EnvironmentFile=/var/lib/harrow-timebase/shared/internal-api.env
+Environment=PORTAL_CONFIG=/etc/harrow-timebase/portal.json
+Environment=PYTHONPATH=/opt/harrow-timebase
+ExecStart=/opt/harrow-timebase/venv/bin/uvicorn attendance_portal:app --host 127.0.0.1 --port 8090 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=3s
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadOnlyPaths=/opt/harrow-timebase /etc/harrow-timebase/portal.json /var/lib/harrow-timebase/shared
+ReadWritePaths=/var/lib/harrow-timebase/portal-staging /var/lib/harrow-timebase/upload-queue
+
+[Install]
+WantedBy=multi-user.target

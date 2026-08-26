@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Upload Attendance & Holidays{% endblock %}
+{% block content %}
+<section class="hero">
+  <div><h1>Harrow TimeBase Upload</h1><p>จัดการ Absent Students และ Holiday Calendar จากหน้าเดียวกัน</p></div>
+  <div class="user">User: <strong>{{ user }}</strong></div>
+</section>
+
+{% if today_status %}
+<div class="status-card {{ today_status.status|lower }}">
+  <strong>Today's attendance status:</strong> {{ today_status.status }} — {{ today_status.message }}
+</div>
+{% endif %}
+
+<div class="grid">
+<section class="card">
+  <div class="section-badge">Attendance</div>
+  <h2>1. Upload Absent Students</h2>
+  <p class="lead">เลือกวันที่และอัปโหลด CSV ระบบจะตั้งชื่อ <code>absent-YYYY-MM-DD.csv</code> ให้อัตโนมัติ</p>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="form_token" value="{{ form_token }}">
+    <label>Attendance Date</label>
+    <input type="date" name="attendance_date" value="{{ today }}" required>
+    <label>Absent CSV File</label>
+    <label class="dropzone">
+      <input id="csvfile" type="file" name="file" accept=".csv,text/csv" required>
+      <span id="filename">ลากไฟล์ CSV มาวาง หรือคลิกเพื่อเลือกไฟล์</span>
+    </label>
+    <p class="hint">Header รองรับ: <code>Email Address</code>, <code>email_address</code>, <code>Email</code>, <code>emailaddress</code>, <code>user_email</code>, <code>student_email</code>. Email ซ้ำจะถูกตัดให้อัตโนมัติ.</p>
+    <p class="ok">✓ หลัง Upload ระบบจะตรวจ Email กับ Jamf Inventory ของ <code>Harrow-All-iPads</code> และ resolve เป็น Serial ของ iPad ก่อนเปลี่ยน Room</p>
+    <p class="hint">Default safety: 1 Email ต้องตรงกับ iPad ใน Master Group เพียง 1 เครื่อง หากไม่พบหรือพบหลายเครื่อง ระบบจะไม่เดาเลือกเครื่องและจะแจ้ง Error พร้อมรายการ Email</p>
+    <button class="primary" type="submit">Validate & Upload Absent</button>
+  </form>
+</section>
+
+<section class="card zero-card">
+  <div class="section-badge">Attendance</div>
+  <h2>2. ไม่มีนักเรียนขาด</h2>
+  <p>ใช้ปุ่มนี้แทนการสร้าง CSV เปล่า ระบบจะสร้างไฟล์แบบ header-only และบันทึก Audit ว่ามีผู้ยืนยัน <strong>Absent = 0</strong></p>
+  <form action="/zero" method="post" onsubmit="return confirm('ยืนยันว่าไม่มีนักเรียนขาดสำหรับวันที่ที่เลือก?');">
+    <input type="hidden" name="form_token" value="{{ form_token }}">
+    <label>Attendance Date</label>
+    <input type="date" name="attendance_date" value="{{ today }}" required>
+    <button class="secondary" type="submit">No Absent Students Today</button>
+  </form>
+</section>
+</div>
+
+<section class="card holiday-card">
+  <div class="holiday-layout">
+    <div class="holiday-upload">
+      <div class="section-badge holiday">Holiday Calendar</div>
+      <h2>3. Upload Holidays</h2>
+      <p class="lead">อัปโหลด Holiday Calendar ใหม่ ระบบจะ Validate → Normalize → Backup ไฟล์เดิม → Replace แบบ atomic ให้อัตโนมัติ</p>
+      <form action="/upload-holidays" method="post" enctype="multipart/form-data" onsubmit="return confirm('ยืนยันการ Replace Holiday Calendar ปัจจุบันด้วยไฟล์นี้? ไฟล์เดิมจะถูก Backup อัตโนมัติ');">
+        <input type="hidden" name="form_token" value="{{ form_token }}">
+        <label>holidays.csv</label>
+        <label class="dropzone holiday-dropzone">
+          <input id="holidayfile" type="file" name="file" accept=".csv,text/csv" required>
+          <span id="holidayfilename">ลาก holidays.csv มาวาง หรือคลิกเพื่อเลือกไฟล์</span>
+        </label>
+        <p class="hint">
+          Header มาตรฐาน: <code>date,description</code><br>
+          วันที่รองรับ: <code>YYYY-MM-DD</code>, <code>DD/MM/YYYY</code>, <code>DD-MM-YYYY</code><br>
+          ระบบจะ Normalize เป็น <code>YYYY-MM-DD</code> และ Block วันที่ซ้ำหรือวันที่ไม่ถูกต้อง
+        </p>
+        <div class="actions">
+          <button class="primary" type="submit">Validate & Replace Holidays</button>
+          {% if holidays.ready %}<a class="button-link" href="/holidays/current">Download Current holidays.csv</a>{% endif %}
+        </div>
+      </form>
+    </div>
+
+    <aside class="holiday-summary">
+      <h3>Current Holiday Calendar</h3>
+      {% if holidays.ready %}
+        <div class="metric"><span>Total Holidays</span><strong>{{ holidays.count }}</strong></div>
+        <p class="hint">Last updated: {{ holidays.updated_at }}</p>
+        <h4>Upcoming</h4>
+        <div class="holiday-list">
+        {% for item in holidays.upcoming %}
+          <div class="holiday-row"><strong>{{ item.date }}</strong><span>{{ item.description or 'Holiday' }}</span></div>
+        {% else %}
+          <p class="hint">ไม่มีวันหยุดที่กำลังจะมาถึงในไฟล์ปัจจุบัน</p>
+        {% endfor %}
+        </div>
+      {% else %}
+        <p class="warn">⚠ {{ holidays.error }}</p>
+      {% endif %}
+    </aside>
+  </div>
+</section>
+
+<section class="card info">
+<h2>Behavior</h2>
+<ul>
+<li>Absent file ใช้ <code>email_address</code> เป็น identity; Controller จะ resolve Email → iPad Serial จาก Jamf Inventory ก่อนใช้ Room=200</li>
+<li>Absent file เดิมของวันเดียวกันจะถูก Archive ก่อน Replace</li>
+<li>Upload Attendance ระหว่าง 08:00–15:59 ของวันเรียนจะ Trigger <code>reconcile</code> ทันที</li>
+<li>ถ้าไม่มี absent CSV ระบบยังใช้ policy <code>zero_absent</code> และให้ทุกเครื่องอยู่ In-Harrow</li>
+<li>Holiday upload จะมีผลกับการตรวจ School Day ของ 07:00 / 08:00 / 08:10 / 16:00 และ Reconcile รอบถัดไปทันที</li>
+<li>Saturday/Sunday ถูก Skip อัตโนมัติโดยไม่ต้องใส่ใน holidays.csv</li>
+</ul>
+</section>
+<script>
+const f=document.getElementById('csvfile'), n=document.getElementById('filename');
+f?.addEventListener('change',()=>{n.textContent=f.files?.[0]?.name || 'ลากไฟล์ CSV มาวาง หรือคลิกเพื่อเลือกไฟล์';});
+const hf=document.getElementById('holidayfile'), hn=document.getElementById('holidayfilename');
+hf?.addEventListener('change',()=>{hn.textContent=hf.files?.[0]?.name || 'ลาก holidays.csv มาวาง หรือคลิกเพื่อเลือกไฟล์';});
+</script>
+{% endblock %}

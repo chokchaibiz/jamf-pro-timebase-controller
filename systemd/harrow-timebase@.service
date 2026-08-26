@@ -1,0 +1,25 @@
+[Unit]
+Description=Harrow Jamf TimeBase action %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=harrow-timebase
+Group=harrow-timebase
+EnvironmentFile=/etc/harrow-timebase/harrow-timebase.env
+ExecStart=/opt/harrow-timebase/venv/bin/python /opt/harrow-timebase/harrow_timebase.py --config /etc/harrow-timebase/config.json %i
+TimeoutStartSec=45min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/log/harrow-timebase /var/lib/harrow-timebase
+ReadOnlyPaths=/opt/harrow-timebase /etc/harrow-timebase
+
+[Install]
+WantedBy=multi-user.target

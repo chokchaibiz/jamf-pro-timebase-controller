@@ -1,0 +1,19 @@
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local/editor artifacts
+.DS_Store
+*.swp
+*.tmp
+
+# Production credentials and local overrides
+harrow-timebase.env.production
+*.env.local
+
+# Runtime-generated attendance/state files
+attendance/absent-*.csv
+!attendance/*.example.csv
+!attendance/*.csv.example

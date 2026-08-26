@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch Harrow attendance upload queue
+
+[Path]
+DirectoryNotEmpty=/var/lib/harrow-timebase/upload-queue
+Unit=harrow-attendance-import.service
+
+[Install]
+WantedBy=multi-user.target

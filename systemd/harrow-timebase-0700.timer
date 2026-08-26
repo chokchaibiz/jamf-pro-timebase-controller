@@ -1,0 +1,11 @@
+[Unit]
+Description=Harrow TimeBase 0700 schedule
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 07:00:00 Asia/Bangkok
+AccuracySec=1s
+Persistent=false
+Unit=harrow-timebase@0700.service
+
+[Install]
+WantedBy=timers.target

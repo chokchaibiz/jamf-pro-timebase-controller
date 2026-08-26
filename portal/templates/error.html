@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Upload Error{% endblock %}
+{% block content %}
+<section class="card error-card"><h1>Upload ไม่สำเร็จ</h1><p>{{ message }}</p>
+{% if details %}<ul>{% for item in details %}<li><code>{{ item }}</code></li>{% endfor %}</ul>{% endif %}
+<a class="button-link" href="/">กลับไปหน้า Upload</a></section>
+{% endblock %}

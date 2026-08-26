@@ -1,0 +1,55 @@
+{
+  "jamf_url": "https://com7publiccompanyl14.jamfcloud.com",
+  "timezone": "Asia/Bangkok",
+  "groups": {
+    "master": "Harrow-All-iPads",
+    "in_harrow": "In-Harrow",
+    "out_harrow": "Out-Harrow"
+  },
+  "profiles": {
+    "assure": "ASSURE",
+    "wifi": "WiFi-Harrow"
+  },
+  "rooms": {
+    "in_harrow": "100",
+    "out_harrow": "200"
+  },
+  "paths": {
+    "attendance_dir": "/opt/harrow-timebase/attendance",
+    "holiday_file": "/opt/harrow-timebase/holidays.csv",
+    "state_dir": "/var/lib/harrow-timebase",
+    "log_file": "/var/log/harrow-timebase/harrow-timebase.log",
+    "lock_file": "/var/lib/harrow-timebase/controller.lock",
+    "master_cache_file": "/var/lib/harrow-timebase/public/master-serials.txt",
+    "manual_override_file": "/var/lib/harrow-timebase/shared/manual-overrides.json"
+  },
+  "performance": {
+    "concurrency": 4,
+    "request_timeout_seconds": 30,
+    "retry_attempts": 5,
+    "batch_retry_rounds": 2,
+    "verify_timeout_seconds": 600,
+    "verify_interval_seconds": 15,
+    "lock_wait_seconds": 300
+  },
+  "safety": {
+    "min_master_devices": 1800,
+    "max_master_devices": 2200,
+    "max_absent_fraction": 0.5,
+    "require_attendance_for_wifi": true,
+    "strict_extra_group_members": false,
+    "missing_attendance_policy": "zero_absent",
+    "email_inventory_min_coverage": 0.95
+  },
+  "device_query": {
+    "master_membership_ttl_seconds": 900,
+    "max_results": 50
+  },
+  "attendance": {
+    "identity_field": "email_address",
+    "email_match_policy": "unique",
+    "inventory_page_size": 100,
+    "classic_email_fallback_enabled": true,
+    "classic_fallback_concurrency": 4
+  }
+}
