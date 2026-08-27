@@ -1,13 +1,14 @@
 """Calendar, path, and manual-override state for the TimeBase controller."""
 from __future__ import annotations
 
-import csv
 import hashlib
 import json
 import os
 from datetime import date, datetime, time as dtime
 from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
+
+from holiday_common import HolidayCSVError, parse_holiday_csv_path
 
 from .types import ConfigError, ControllerError
 
@@ -17,21 +18,11 @@ class ControllerStateMixin:
         path = Path(self.cfg["paths"]["holiday_file"])
         if not path.exists():
             raise ConfigError(f"Holiday file not found: {path}")
-        result: Dict[date, str] = {}
-        with path.open(newline="", encoding="utf-8-sig") as fh:
-            reader = csv.DictReader(fh)
-            if not reader.fieldnames or "date" not in [x.strip().lower() for x in reader.fieldnames]:
-                raise ConfigError("holidays.csv must contain a 'date' column")
-            for row in reader:
-                raw_date = (row.get("date") or row.get("Date") or "").strip()
-                if not raw_date:
-                    continue
-                try:
-                    d = date.fromisoformat(raw_date)
-                except ValueError as exc:
-                    raise ConfigError(f"Invalid holiday date: {raw_date}") from exc
-                result[d] = (row.get("description") or row.get("Description") or "").strip()
-        return result
+        try:
+            parsed = parse_holiday_csv_path(path)
+        except (OSError, HolidayCSVError) as exc:
+            raise ConfigError(f"Invalid holiday calendar {path}: {exc}") from exc
+        return {entry.holiday_date: entry.description for entry in parsed.entries}
 
     def is_school_day(self, d: Optional[date] = None) -> Tuple[bool, str]:
         d = d or self.now().date()

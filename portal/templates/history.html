@@ -11,7 +11,7 @@
 <td>{{ 'Holiday' if row.job_type == 'holiday' else ('Device Override' if row.job_type == 'device_override' else 'Attendance') }}</td>
 <td>{{ 'holidays.csv' if row.job_type == 'holiday' else (((row.email_address or row.serial_number or '-')) if row.job_type == 'device_override' else (row.attendance_date or '-')) }}</td>
 <td><span class="pill {{ row.status|lower }}">{{ row.status }}</span></td>
-<td>{% if row.job_type == 'holiday' %}{{ row.holiday_count if row.holiday_count is defined else '-' }} holidays{% elif row.job_type == 'device_override' %}{{ 'OUT' if row.action == 'manual_out' else 'CLEAR' }}{% else %}{{ row.absent_count if row.absent_count is defined else '-' }} absent{% endif %}</td>
+<td>{% if row.job_type == 'holiday' %}{{ row.holiday_count if row.holiday_count is defined else '-' }} holiday dates{% if row.holiday_range_count|default(0) %} ({{ row.holiday_range_count }} range rows){% endif %}{% elif row.job_type == 'device_override' %}{{ 'OUT' if row.action == 'manual_out' else 'CLEAR' }}{% else %}{{ row.absent_count if row.absent_count is defined else '-' }} absent{% endif %}</td>
 <td>{{ row.submitted_by or '-' }}</td>
 <td>{{ row.completed_at or row.submitted_at or '-' }}</td>
 <td><a href="/status/{{ row.job_id }}">View</a></td>

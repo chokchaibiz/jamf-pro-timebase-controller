@@ -2,6 +2,7 @@
 
 This bundle incorporates fixes verified on the installed Harrow TimeBase server:
 
+- **Inclusive holiday ranges:** holiday uploads now accept `date,end_date,description`; a blank end date represents one day, while a populated end date expands inclusively into canonical daily rows. The existing `date,description` format remains supported.
 - **Installer permission boundary fixed:** `install-program.sh` gives both isolated service accounts execute-only traversal of shared parent directories, retains group-restricted files, normalizes installed ownership/modes, and validates access before starting services. `install.sh` remains a compatibility entry point.
 - **Complete hotfix deployment:** `apply-hotfix.sh` now installs all runtime modules, Portal templates/static files, and systemd units instead of replacing only `harrow_timebase.py`.
 - **EXDEV-safe Portal queue handoff:** cross-filesystem queue moves no longer fail with `Invalid cross-device link`. The Portal writes/copies to a hidden file in the destination filesystem and exposes the final `.job.json` only after the copy is complete.
@@ -9,7 +10,7 @@ This bundle incorporates fixes verified on the installed Harrow TimeBase server:
 - **Classic API Device Override fallback:** live Email search and selected-Serial revalidation also fall back to Classic API when the v2 inventory response is unusable.
 - **`classic_xml(params=...)` compatibility retained.**
 - **UTF-8 BOM / Excel CSV support retained.**
-- **Regression checks included:** the installer and hotfix validate syntax, BOM parsing, Classic fallback functions, EXDEV handling, and complete hotfix deployment before restarting services.
+- **Regression checks included:** the installer and hotfix validate syntax, holiday ranges, BOM parsing, Classic fallback functions, EXDEV handling, and complete hotfix deployment before restarting services.
 - Existing `/etc/harrow-timebase/config.json`, Jamf credentials, Attendance/History, Holidays, and Manual Override state are preserved by `apply-hotfix.sh`.
 
 ## Update an existing server
@@ -44,14 +45,15 @@ sudo journalctl -u harrow-attendance-import.service -u harrow-device-query.servi
 
 - `Upload Holidays` card on the same page as `Upload Absent Students`.
 - Holiday CSV validation and normalization through `holiday_common.py`.
+- Optional inclusive `end_date` ranges, with backward compatibility for single-date files.
 - Accepted date formats: `YYYY-MM-DD`, `DD/MM/YYYY`, `DD-MM-YYYY`.
-- Duplicate holiday dates and invalid dates are blocked before activation.
+- Overlapping holiday dates, reversed/overlong ranges, and invalid dates are blocked before activation.
 - Previous `holidays.csv` is archived before replacement.
 - Holiday file activation is atomic through a shared writable state path.
 - Compatibility symlink keeps `/opt/harrow-timebase/holidays.csv` working for existing controller configurations.
 - Current holiday count, upcoming holiday preview, and `Download Current holidays.csv` on the Portal.
 - Holiday uploads are recorded in the existing status/history/audit workflow.
-- `install.sh` migrates an existing holiday file automatically during upgrade.
+- `install-program.sh` migrates an existing holiday file automatically during upgrade; `install.sh` remains its compatibility wrapper.
 
 ## Attendance behavior
 

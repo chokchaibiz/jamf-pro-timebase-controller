@@ -1,5 +1,5 @@
-date,description
-2026-10-13,Annual Holiday
-23/10/2026,Annual Holiday
-10-12-2026,Constitution Day
-2026-12-31,School Holiday
+date,end_date,description
+2026-10-13,,Annual Holiday
+19/10/2026,23/10/2026,Midterm Break
+10-12-2026,,Constitution Day
+2026-12-21,2027-01-08,Winter Break

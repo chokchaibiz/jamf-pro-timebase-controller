@@ -1,5 +1,5 @@
-date,description
-2026-10-13,Annual holiday example
-2026-10-23,Annual holiday example
-2026-12-10,Annual holiday example
-2026-12-31,School holiday example
+date,end_date,description
+2026-10-13,,Annual holiday example
+2026-10-19,2026-10-23,Midterm break example
+2026-12-10,,Annual holiday example
+2026-12-31,,School holiday example

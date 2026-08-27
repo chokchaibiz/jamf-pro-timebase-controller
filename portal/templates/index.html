@@ -60,9 +60,10 @@
           <span id="holidayfilename">ลาก holidays.csv มาวาง หรือคลิกเพื่อเลือกไฟล์</span>
         </label>
         <p class="hint">
-          Header มาตรฐาน: <code>date,description</code><br>
+          Header แนะนำ: <code>date,end_date,description</code><br>
+          <code>end_date</code> เว้นว่างได้สำหรับวันเดียว หรือใส่วันสุดท้ายเพื่อสร้างช่วงวันหยุดแบบ inclusive<br>
           วันที่รองรับ: <code>YYYY-MM-DD</code>, <code>DD/MM/YYYY</code>, <code>DD-MM-YYYY</code><br>
-          ระบบจะ Normalize เป็น <code>YYYY-MM-DD</code> และ Block วันที่ซ้ำหรือวันที่ไม่ถูกต้อง
+          ระบบจะ Expand ช่วงวันเป็นรายวัน, Normalize เป็น <code>YYYY-MM-DD</code> และ Block ช่วงวันที่ซ้อนกัน
         </p>
         <div class="actions">
           <button class="primary" type="submit">Validate & Replace Holidays</button>

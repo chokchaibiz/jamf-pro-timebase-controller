@@ -147,6 +147,7 @@ echo "[5/7] Running regression checks"
 "$PY" "$SRC_DIR/tests/regression_check.py"
 "$PY" "$SRC_DIR/tests/runtime_regression_check.py"
 "$PY" "$SRC_DIR/tests/refactor_behavior_check.py"
+"$PY" "$SRC_DIR/tests/holiday_range_check.py"
 
 echo "[6/7] Restarting portal/query/queue services"
 systemctl restart harrow-device-query.service

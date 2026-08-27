@@ -185,13 +185,13 @@ On installation this is maintained as a compatibility symlink to the writable sh
 Preferred format:
 
 ```csv
-date,description
-2026-10-13,Annual Holiday
-2026-10-23,Annual Holiday
-2026-12-10,Constitution Day
+date,end_date,description
+2026-10-13,,Annual Holiday
+2026-10-19,2026-10-23,Midterm Break
+2026-12-10,,Constitution Day
 ```
 
-The Web Portal accepts dates in `YYYY-MM-DD`, `DD/MM/YYYY`, or `DD-MM-YYYY` and normalizes the stored calendar to `YYYY-MM-DD`. Duplicate dates and invalid dates are rejected. The previous holiday calendar is archived before every replacement. Saturday and Sunday are automatically non-school days and do not need rows in the CSV.
+`end_date` is optional. Leave it blank for a single holiday, or provide it to create an inclusive range. The older `date,description` format remains supported. The Web Portal accepts dates in `YYYY-MM-DD`, `DD/MM/YYYY`, or `DD-MM-YYYY` and expands ranges into canonical daily `YYYY-MM-DD` rows. Invalid dates, reversed ranges, overlapping dates, and ranges longer than 370 days are rejected. The previous holiday calendar is archived before every replacement. Saturday and Sunday are automatically non-school days and do not need rows in the CSV.
 
 ## 6. Attendance CSV / Web Upload Portal
 
@@ -332,8 +332,8 @@ The home page contains a third card named **Upload Holidays** directly below the
 
 1. Open the same Portal URL: `https://SERVER-IP:8443/`.
 2. In **Upload Holidays**, drag/drop a `.csv` file. The filename can be anything; `holidays.csv` is recommended.
-3. The Portal validates the header, date format, duplicate dates, UTF-8 encoding, and that at least one holiday is present.
-4. The Portal normalizes the calendar to canonical `date,description` format.
+3. The Portal validates the header, date format, inclusive ranges, overlapping dates, UTF-8 encoding, and that at least one holiday is present.
+4. The Portal expands ranges and normalizes the calendar to canonical daily `date,description` rows.
 5. The user confirms replacement.
 6. The importer archives the previous calendar under `/opt/harrow-timebase/archive/holidays/YYYY/` and atomically activates the new calendar.
 7. By default the importer triggers `reconcile` immediately after activation, so a change affecting today is applied without waiting for the next timer. This can be disabled with `reconcile_on_holiday_upload: false` in `portal.json`.
@@ -341,24 +341,28 @@ The home page contains a third card named **Upload Holidays** directly below the
 Supported examples:
 
 ```csv
-date,description
-2026-10-13,Annual Holiday
-23/10/2026,Annual Holiday
-10-12-2026,Constitution Day
-2026-12-31,School Holiday
+date,end_date,description
+2026-10-13,,Annual Holiday
+19/10/2026,23/10/2026,Midterm Break
+10-12-2026,,Constitution Day
+2026-12-31,,School Holiday
 ```
 
-The stored file is normalized to:
+The stored file is expanded and normalized to:
 
 ```csv
 date,description
 2026-10-13,Annual Holiday
-2026-10-23,Annual Holiday
+2026-10-19,Midterm Break
+2026-10-20,Midterm Break
+2026-10-21,Midterm Break
+2026-10-22,Midterm Break
+2026-10-23,Midterm Break
 2026-12-10,Constitution Day
 2026-12-31,School Holiday
 ```
 
-The same card also displays the current total number of holidays, up to 12 upcoming holidays, the last-update time, and a **Download Current holidays.csv** button. Holiday replacements also appear in the common Upload History and Audit Log.
+The same card also displays the current total number of holiday dates, up to 12 upcoming holidays (consecutive dates with the same description are shown as a range), the last-update time, and a **Download Current holidays.csv** button. Holiday replacements also appear in the common Upload History and Audit Log.
 
 ## 7. Preflight
 

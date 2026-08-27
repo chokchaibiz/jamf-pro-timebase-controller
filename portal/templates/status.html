@@ -15,7 +15,8 @@
   {% if job.username %}<dt>Username</dt><dd>{{ job.username }}</dd>{% endif %}
   {% if job.device_name %}<dt>Device</dt><dd>{{ job.device_name }}</dd>{% endif %}
   {% if job.submitted_by %}<dt>User</dt><dd>{{ job.submitted_by }}</dd>{% endif %}
-  {% if job.holiday_count %}<dt>Holidays</dt><dd>{{ job.holiday_count }}</dd>{% endif %}
+  {% if job.holiday_count %}<dt>Holiday dates</dt><dd>{{ job.holiday_count }}</dd>{% endif %}
+  {% if job.holiday_range_count|default(0) %}<dt>Range rows</dt><dd>{{ job.holiday_range_count }}</dd>{% endif %}
   {% if job.absent_count is defined %}<dt>Absent emails</dt><dd>{{ job.absent_count }}</dd>{% endif %}
   {% if job.absent_device_count is defined %}<dt>Resolved iPads</dt><dd>{{ job.absent_device_count }}</dd>{% endif %}
   {% if job.present_count is defined %}<dt>Present</dt><dd>{{ job.present_count }}</dd>{% endif %}

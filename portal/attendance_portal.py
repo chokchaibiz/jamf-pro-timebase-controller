@@ -139,6 +139,7 @@ def atomic_write(path: Path, data: bytes, mode: int = 0o640) -> None:
 
 def queue_job(*, action: str, user: str, selected: Optional[date] = None, original_filename: str = "", serial_count: int = 0, email_count: int = 0,
               duplicate_count: int = 0, staged_filename: str = "", holiday_count: int = 0,
+              holiday_range_count: int = 0,
               serial_number: str = "", email_address: str = "", username: str = "",
               device_name: str = "", reason: str = "") -> str:
     job_id = f"{now().strftime('%Y%m%dT%H%M%S')}-{secrets.token_hex(6)}"
@@ -160,6 +161,7 @@ def queue_job(*, action: str, user: str, selected: Optional[date] = None, origin
         "email_count": email_count,
         "duplicate_count": duplicate_count,
         "holiday_count": holiday_count,
+        "holiday_range_count": holiday_range_count,
     }
     if serial_number:
         job["serial_number"] = serial_number.strip().upper()
@@ -193,10 +195,31 @@ def holiday_summary() -> dict:
     except (OSError, HolidayCSVError) as exc:
         return {"ready": False, "count": 0, "upcoming": [], "error": str(exc)}
     today = now().date()
+    collapsed = []
+    for entry in (x for x in parsed.entries if x.holiday_date >= today):
+        if (
+            collapsed
+            and collapsed[-1]["description"] == entry.description
+            and collapsed[-1]["end"] + timedelta(days=1) == entry.holiday_date
+        ):
+            collapsed[-1]["end"] = entry.holiday_date
+        else:
+            collapsed.append({
+                "start": entry.holiday_date,
+                "end": entry.holiday_date,
+                "description": entry.description,
+            })
     upcoming = [
-        {"date": x.holiday_date.isoformat(), "description": x.description}
-        for x in parsed.entries if x.holiday_date >= today
-    ][:12]
+        {
+            "date": (
+                item["start"].isoformat()
+                if item["start"] == item["end"]
+                else f"{item['start'].isoformat()} – {item['end'].isoformat()}"
+            ),
+            "description": item["description"],
+        }
+        for item in collapsed[:12]
+    ]
     return {
         "ready": True,
         "count": parsed.holiday_count,
@@ -398,6 +421,7 @@ async def upload_holidays(
         original_filename=filename,
         staged_filename=staged_name,
         holiday_count=parsed.holiday_count,
+        holiday_range_count=parsed.range_count,
     )
     return RedirectResponse(url=f"/status/{job_id}", status_code=303)
 
