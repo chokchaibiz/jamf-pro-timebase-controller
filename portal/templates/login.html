@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login • Harrow TimeBase</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-card">
+      <div class="auth-logo">HT</div>
+      <h1>Harrow TimeBase</h1>
+      <p class="auth-lead">Sign in to manage Attendance, Holidays and Device Override</p>
+      {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+      <form action="/login" method="post" class="auth-form">
+        <input type="hidden" name="form_token" value="{{ form_token }}">
+        <input type="hidden" name="next" value="{{ next }}">
+        <label>Username</label>
+        <input type="text" name="username" value="{{ username or '' }}" autocomplete="username" autocapitalize="none" required autofocus>
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required>
+        <button class="primary auth-submit" type="submit">Login</button>
+      </form>
+      <p class="auth-footnote">Authorized Harrow administrators only</p>
+    </section>
+  </main>
+</body>
+</html>

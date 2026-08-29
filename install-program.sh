@@ -2,6 +2,8 @@
 set -euo pipefail
 
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AUTH_DIR=/var/lib/harrow-timebase/portal-auth
+DEFAULT_ADMIN_PASSWORD="${HARROW_DEFAULT_ADMIN_PASSWORD:-harrow@dmin}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root: sudo bash install-program.sh" >&2
@@ -12,13 +14,13 @@ install_os_dependencies() {
   if command -v apt-get >/dev/null 2>&1; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
-    apt-get install -y python3 python3-venv python3-pip nginx apache2-utils openssl
+    apt-get install -y python3 python3-venv python3-pip nginx openssl
   elif command -v dnf >/dev/null 2>&1; then
-    dnf install -y python3 python3-pip nginx httpd-tools openssl
+    dnf install -y python3 python3-pip nginx openssl
   elif command -v yum >/dev/null 2>&1; then
-    yum install -y python3 python3-pip nginx httpd-tools openssl
+    yum install -y python3 python3-pip nginx openssl
   else
-    echo "Unsupported package manager. Install Python 3 + venv/pip, nginx, and htpasswd manually." >&2
+    echo "Unsupported package manager. Install Python 3 + venv/pip, Nginx, and OpenSSL manually." >&2
     exit 1
   fi
 }
@@ -53,6 +55,7 @@ install -d -m 2770 -o harrow-upload -g harrow-timebase /var/lib/harrow-timebase/
 install -d -m 2770 -o harrow-upload -g harrow-timebase /var/lib/harrow-timebase/upload-queue
 install -d -m 2750 -o harrow-timebase -g harrow-upload /var/lib/harrow-timebase/upload-status
 install -d -m 2750 -o harrow-timebase -g harrow-upload /var/lib/harrow-timebase/public
+install -d -m 0700 -o harrow-upload -g harrow-upload "$AUTH_DIR"
 install -d -m 0750 -o harrow-timebase -g harrow-timebase /var/log/harrow-timebase
 # harrow-timebase and harrow-upload read different group-restricted files here.
 # Execute-only access for non-root users permits traversal without directory listing.
@@ -123,6 +126,7 @@ chown harrow-timebase:harrow-upload "$INTERNAL_API_ENV"
 chmod 0640 "$INTERNAL_API_ENV"
 
 install -m 0644 "$SRC_DIR/portal/attendance_portal.py" /opt/harrow-timebase/portal/attendance_portal.py
+install -m 0644 "$SRC_DIR/portal/auth_store.py" /opt/harrow-timebase/portal/auth_store.py
 cp -a "$SRC_DIR/portal/templates/." /opt/harrow-timebase/portal/templates/
 cp -a "$SRC_DIR/portal/static/." /opt/harrow-timebase/portal/static/
 chown -R root:root /opt/harrow-timebase/portal
@@ -135,10 +139,22 @@ python3 -m venv /opt/harrow-timebase/venv
 chown -R root:root /opt/harrow-timebase/venv
 chmod -R u=rwX,go=rX /opt/harrow-timebase/venv
 
+# Initialize the application login once. Upgrades preserve existing users,
+# password hashes, and the session signing key.
+HARROW_DEFAULT_ADMIN_PASSWORD="$DEFAULT_ADMIN_PASSWORD" \
+  /opt/harrow-timebase/venv/bin/python /opt/harrow-timebase/portal/auth_store.py init-users \
+    --auth-dir "$AUTH_DIR" \
+    --user admin1 --user admin2 --user admin3 --user admin4 --user admin5
+chown -R harrow-upload:harrow-upload "$AUTH_DIR"
+find "$AUTH_DIR" -type d -exec chmod 0700 {} +
+find "$AUTH_DIR" -type f -exec chmod 0600 {} +
+
 echo "Running runtime regression checks..."
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/runtime_regression_check.py"
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/refactor_behavior_check.py"
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/holiday_range_check.py"
+/opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/auth_regression_check.py"
+/opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/portal_auth_integration_check.py"
 
 # Prefer production configuration when bundled; preserve an existing installed config.
 CONFIG_SOURCE="$SRC_DIR/config.example.json"
@@ -217,6 +233,8 @@ for path in \
   /etc/harrow-timebase/portal.env \
   /var/lib/harrow-timebase/shared/internal-api.env \
   /var/lib/harrow-timebase/shared/holidays.csv \
+  "$AUTH_DIR/users.json" \
+  "$AUTH_DIR/session.key" \
   /opt/harrow-timebase/portal/attendance_portal.py; do
   assert_user_access harrow-upload r "$path"
 done
@@ -236,6 +254,8 @@ for path in \
 done
 assert_user_access harrow-upload x /var/lib/harrow-timebase/upload-status
 assert_user_access harrow-upload x /var/lib/harrow-timebase/public
+assert_user_access harrow-upload x "$AUTH_DIR"
+assert_user_access harrow-upload w "$AUTH_DIR"
 echo "Runtime permission checks: PASS"
 
 # Remove obsolete full-inventory polling units from older bundle versions.
@@ -248,7 +268,7 @@ for unit in "$SRC_DIR"/systemd/*; do
   install -m 0644 "$unit" "/etc/systemd/system/$(basename "$unit")"
 done
 
-# Nginx reverse proxy, TLS, and Basic Authentication.
+# Nginx reverse proxy and TLS. Authentication is handled by the portal.
 install -m 0644 "$SRC_DIR/nginx/harrow-timebase.conf" /etc/nginx/conf.d/harrow-timebase.conf
 install -d -m 0700 /etc/nginx/harrow-timebase-tls
 if [[ ! -f /etc/nginx/harrow-timebase-tls/server.crt || ! -f /etc/nginx/harrow-timebase-tls/server.key ]]; then
@@ -260,28 +280,8 @@ if [[ ! -f /etc/nginx/harrow-timebase-tls/server.crt || ! -f /etc/nginx/harrow-t
   chmod 0600 /etc/nginx/harrow-timebase-tls/server.key
   chmod 0644 /etc/nginx/harrow-timebase-tls/server.crt
 fi
-PORTAL_USER="${HARROW_PORTAL_USER:-harrow-admin}"
-NEW_PORTAL_PASSWORD=""
-if [[ ! -f /etc/nginx/.harrow-timebase.htpasswd ]]; then
-  NEW_PORTAL_PASSWORD="${HARROW_PORTAL_PASSWORD:-$(python3 - <<'PY'
-import secrets
-print(secrets.token_urlsafe(12))
-PY
-)}"
-  htpasswd -bcB /etc/nginx/.harrow-timebase.htpasswd "$PORTAL_USER" "$NEW_PORTAL_PASSWORD" >/dev/null
-fi
-NGINX_USER="$(awk '$1=="user" {gsub(";", "", $2); print $2; exit}' /etc/nginx/nginx.conf 2>/dev/null || true)"
-if [[ -n "$NGINX_USER" ]] && id "$NGINX_USER" >/dev/null 2>&1; then
-  NGINX_GROUP="$(id -gn "$NGINX_USER")"
-  chown root:"$NGINX_GROUP" /etc/nginx/.harrow-timebase.htpasswd
-  chmod 0640 /etc/nginx/.harrow-timebase.htpasswd
-else
-  chown root:root /etc/nginx/.harrow-timebase.htpasswd
-  chmod 0644 /etc/nginx/.harrow-timebase.htpasswd
-fi
-
 if command -v restorecon >/dev/null 2>&1; then
-  restorecon -RF /etc/nginx/harrow-timebase-tls /etc/nginx/conf.d/harrow-timebase.conf /etc/nginx/.harrow-timebase.htpasswd || true
+  restorecon -RF /etc/nginx/harrow-timebase-tls /etc/nginx/conf.d/harrow-timebase.conf || true
 fi
 nginx -t
 systemctl daemon-reload
@@ -302,14 +302,9 @@ echo "============================================================"
 echo "Harrow TimeBase + Attendance Upload Portal installed"
 echo "============================================================"
 echo "Portal URL : https://${SERVER_IP}:8443/"
-echo "Portal user: ${PORTAL_USER}"
-if [[ -n "$NEW_PORTAL_PASSWORD" ]]; then
-  echo "Portal password (shown once): ${NEW_PORTAL_PASSWORD}"
-  echo "Save this password securely. To change it later:"
-  echo "  sudo htpasswd /etc/nginx/.harrow-timebase.htpasswd ${PORTAL_USER}"
-else
-  echo "Portal password: existing password preserved"
-fi
+echo "Initial users: admin1, admin2, admin3, admin4, admin5"
+echo "Initial password: ${DEFAULT_ADMIN_PASSWORD}"
+echo "Existing application passwords are preserved on future installer runs."
 cat <<'MSG'
 
 Portal and upload queue are running now.
@@ -317,15 +312,16 @@ The first connection may show a browser warning because the installer creates a 
 Core Jamf 07:00/08:00/08:10/16:00 timers are NOT enabled automatically.
 
 RECOMMENDED NEXT STEPS:
-  1. Open the Portal and upload/verify the official holidays.csv from the Upload Holidays card.
-  2. Run Jamf preflight and verify the localhost Device Query broker:
+  1. Sign in and immediately change the default password for every portal account.
+  2. Upload/verify the official holidays.csv from the Upload Holidays card.
+  3. Run Jamf preflight and verify the localhost Device Query broker:
        sudo systemctl start harrow-timebase@preflight.service
        sudo journalctl -u harrow-timebase@preflight.service -u harrow-device-query.service -n 150 --no-pager
        curl -s http://127.0.0.1:8091/healthz
-  3. Open the Portal URL and test Upload + Device Override with pilot devices.
-  4. Verify portal/import/query services:
+  4. Test Upload + Device Override with pilot devices.
+  5. Verify portal/import/query services:
        systemctl status harrow-attendance-portal.service harrow-attendance-import.path harrow-device-query.service
-  5. When pilot validation is complete, enable core timers:
+  6. When pilot validation is complete, enable core timers:
        sudo systemctl enable --now \
          harrow-timebase-0700.timer \
          harrow-timebase-0800.timer \

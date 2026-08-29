@@ -1,7 +1,8 @@
-# Production R3 — 2026-08-25
+# Production R4 Login — 2026-08-29
 
 This bundle incorporates fixes verified on the installed Harrow TimeBase server:
 
+- **Portal application login:** five local administrator accounts, signed session cookies, password changes, logout, and old-session invalidation after a password change.
 - **Complete hotfix deployment:** `apply-hotfix.sh` now installs all runtime modules, Portal templates/static files, and systemd units instead of replacing only `harrow_timebase.py`.
 - **EXDEV-safe Portal queue handoff:** cross-filesystem queue moves no longer fail with `Invalid cross-device link`. The Portal writes/copies to a hidden file in the destination filesystem and exposes the final `.job.json` only after the copy is complete.
 - **Classic API Email fallback:** Attendance Email → Serial resolution prefers `/api/v2/mobile-devices/detail`, but automatically falls back to Classic `Mobile Devices / Location` lookups when the tenant returns missing/blank `serialNumber`.
@@ -14,8 +15,8 @@ This bundle incorporates fixes verified on the installed Harrow TimeBase server:
 ## Update an existing server
 
 ```bash
-unzip harrow-timebase-r3-hotfix.zip
-cd harrow-timebase-r3-hotfix
+unzip harrow-timebase-r4-login.zip
+cd harrow-timebase-r4-login
 sudo bash apply-hotfix.sh
 ```
 
@@ -31,7 +32,7 @@ sudo journalctl -u harrow-attendance-import.service -u harrow-device-query.servi
 
 # Harrow Jamf Pro TimeBase Controller + Attendance Upload Portal — Production Implementation
 
-> This release provides a browser-based TimeBase Upload Portal for both **Absent Students** and **Holiday Calendar**, Nginx Basic Authentication, a systemd queue importer, automatic validation/archive, and immediate Jamf reconcile for same-day attendance uploads between 08:00–15:59.
+> This release provides a browser-based TimeBase Upload Portal for both **Absent Students** and **Holiday Calendar**, application login, a systemd queue importer, automatic validation/archive, and immediate Jamf reconcile for same-day attendance uploads between 08:00–15:59.
 
 This bundle implements the following desired state without The MUT:
 
@@ -241,22 +242,19 @@ Run:
 sudo bash install-program.sh
 ```
 
-The installer now installs Python dependencies, Nginx, `htpasswd`, the FastAPI Portal, upload queue/importer, systemd units, and the existing TimeBase controller. It enables only the Portal and attendance queue automatically; the 07:00/08:00/08:10/16:00 Jamf timers remain disabled until pilot validation is complete.
+The installer installs Python dependencies, Nginx, the FastAPI Portal, application login, upload queue/importer, systemd units, and the existing TimeBase controller. It enables only the Portal and attendance queue automatically; the 07:00/08:00/08:10/16:00 Jamf timers remain disabled until pilot validation is complete.
 
 At the end of a first installation it prints:
 
 ```text
 Portal URL : https://SERVER-IP:8443/
-Portal user: harrow-admin
-Portal password (shown once): <generated password>
+Initial users: admin1, admin2, admin3, admin4, admin5
+Initial password: harrow@dmin
 ```
 
-The generated password is stored only as a bcrypt hash in `/etc/nginx/.harrow-timebase.htpasswd`. Change it with:
+Sign in with each account and immediately use the top-right user menu to change its password. Password hashes and the session signing key are stored with mode `0600` under `/var/lib/harrow-timebase/portal-auth`; installer and hotfix reruns preserve them.
 
-```bash
-sudo htpasswd /etc/nginx/.harrow-timebase.htpasswd harrow-admin
-sudo systemctl reload nginx
-```
+For a fresh installation, the shared initial password can be overridden with `sudo env HARROW_DEFAULT_ADMIN_PASSWORD='your-password' bash install-program.sh`.
 
 ### User workflow
 
@@ -275,8 +273,8 @@ For a zero-absence day, use **No Absent Students Today**. It creates a header-on
 
 ```text
 Browser
-  -> Nginx :8443 HTTPS + Basic Auth
-  -> FastAPI (127.0.0.1:8090, user harrow-upload)
+  -> Nginx :8443 HTTPS
+  -> FastAPI application login (127.0.0.1:8090, user harrow-upload)
   -> /var/lib/harrow-timebase/portal-staging
   -> /var/lib/harrow-timebase/upload-queue/*.job.json
   -> harrow-attendance-import.path
@@ -636,10 +634,10 @@ The Portal does **not** keep a full Jamf mobile-device inventory cache and does 
 Browser / School Staff
         |
         v
-Nginx HTTPS + Basic Auth
+Nginx HTTPS
         |
         v
-Attendance Portal (harrow-upload)
+Attendance Portal + Application Login (harrow-upload)
         |
         | X-Internal-Token
         | localhost only

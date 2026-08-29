@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Harrow Attendance Upload Portal.
 
-The portal never receives Jamf credentials. It validates/normalizes uploads and queues
-jobs for the privileged attendance importer. Nginx handles Basic Authentication.
+The portal never receives Jamf credentials. It validates and normalizes uploads,
+queues jobs for the privileged attendance importer, and provides its own local
+application authentication.
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional, Set
+from urllib.parse import quote
 
 import requests
 from zoneinfo import ZoneInfo
@@ -24,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from attendance_common import AttendanceCSVError, normalized_csv, parse_csv_bytes
+from auth_store import AuthStore
 from holiday_common import HolidayCSVError, normalized_holiday_csv, parse_holiday_csv_bytes, parse_holiday_csv_path
 
 PORTAL_CONFIG = Path(os.environ.get("PORTAL_CONFIG", "/etc/harrow-timebase/portal.json"))
@@ -51,11 +54,55 @@ INTERNAL_API_TOKEN = os.environ.get("HARROW_INTERNAL_API_TOKEN", "").strip()
 MAX_UPLOAD_BYTES = int(CFG.get("max_upload_bytes", 2 * 1024 * 1024))
 PAST_DAYS = int(CFG.get("date_window", {}).get("past_days", 7))
 FUTURE_DAYS = int(CFG.get("date_window", {}).get("future_days", 30))
+AUTH_DIR = Path(os.environ.get("HARROW_AUTH_DIR", "/var/lib/harrow-timebase/portal-auth"))
+SESSION_COOKIE = os.environ.get("HARROW_SESSION_COOKIE", "harrow_timebase_session")
+SESSION_TTL_SECONDS = int(os.environ.get("HARROW_SESSION_TTL_SECONDS", str(8 * 60 * 60)))
+COOKIE_SECURE = os.environ.get("HARROW_AUTH_COOKIE_SECURE", "true").strip().lower() not in {"0", "false", "no"}
+AUTH = AuthStore(AUTH_DIR)
+AUTH.ensure_runtime()
 
 APP_DIR = Path(__file__).resolve().parent
 app = FastAPI(title="Harrow Attendance Upload Portal", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
+templates.env.globals["portal_form_token"] = FORM_TOKEN
+
+PUBLIC_PATHS = {"/login", "/healthz"}
+
+
+def _safe_next(value: str) -> str:
+    value = (value or "/").strip()
+    if (
+        not value.startswith("/")
+        or value.startswith("//")
+        or "\\" in value
+        or any(ord(character) < 32 for character in value)
+    ):
+        return "/"
+    return value
+
+
+@app.middleware("http")
+async def portal_authentication(request: Request, call_next):
+    path = request.url.path
+    if path in PUBLIC_PATHS or path.startswith("/static/"):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    token = request.cookies.get(SESSION_COOKIE, "")
+    username = AUTH.verify_session(token) if token else None
+    if not username:
+        next_path = path
+        if request.url.query and request.method == "GET":
+            next_path = f"{path}?{request.url.query}"
+        return RedirectResponse(
+            url=f"/login?next={quote(next_path, safe='/:?=&%')}",
+            status_code=303,
+        )
+    request.state.user = username
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def now() -> datetime:
@@ -63,7 +110,7 @@ def now() -> datetime:
 
 
 def current_user(request: Request) -> str:
-    return request.headers.get("x-remote-user") or "authenticated-user"
+    return str(getattr(request.state, "user", ""))
 
 
 def validate_form_token(token: str) -> None:
@@ -302,6 +349,130 @@ def read_recent_status(limit: int = 30) -> list[dict]:
         except (OSError, json.JSONDecodeError):
             continue
     return rows
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request, next: str = "/"):
+    token = request.cookies.get(SESSION_COOKIE, "")
+    if token and AUTH.verify_session(token):
+        return RedirectResponse(url=_safe_next(next), status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"next": _safe_next(next), "form_token": FORM_TOKEN, "error": ""},
+    )
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login_submit(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    next: str = Form("/"),
+    form_token: str = Form(...),
+):
+    validate_form_token(form_token)
+    authenticated = AUTH.authenticate(username, password)
+    if not authenticated:
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            status_code=401,
+            context={
+                "next": _safe_next(next),
+                "form_token": FORM_TOKEN,
+                "error": "Username หรือ Password ไม่ถูกต้อง",
+                "username": username.strip(),
+            },
+        )
+    response = RedirectResponse(url=_safe_next(next), status_code=303)
+    response.set_cookie(
+        SESSION_COOKIE,
+        AUTH.create_session(authenticated, ttl_seconds=SESSION_TTL_SECONDS),
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+    return response
+
+
+@app.post("/logout")
+def logout(form_token: str = Form(...)):
+    validate_form_token(form_token)
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie(
+        SESSION_COOKIE,
+        path="/",
+        secure=COOKIE_SECURE,
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+@app.get("/change-password", response_class=HTMLResponse)
+def change_password_page(request: Request, changed: int = 0):
+    return templates.TemplateResponse(
+        request=request,
+        name="change_password.html",
+        context={
+            "user": current_user(request),
+            "form_token": FORM_TOKEN,
+            "changed": bool(changed),
+            "error": "",
+        },
+    )
+
+
+@app.post("/change-password", response_class=HTMLResponse)
+def change_password_submit(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    form_token: str = Form(...),
+):
+    validate_form_token(form_token)
+    user = current_user(request)
+    if new_password != confirm_password:
+        return templates.TemplateResponse(
+            request=request,
+            name="change_password.html",
+            status_code=400,
+            context={
+                "user": user,
+                "form_token": FORM_TOKEN,
+                "changed": False,
+                "error": "New password และ Confirm password ไม่ตรงกัน",
+            },
+        )
+    try:
+        AUTH.change_password(user, current_password, new_password)
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            request=request,
+            name="change_password.html",
+            status_code=400,
+            context={
+                "user": user,
+                "form_token": FORM_TOKEN,
+                "changed": False,
+                "error": str(exc),
+            },
+        )
+    response = RedirectResponse(url="/change-password?changed=1", status_code=303)
+    response.set_cookie(
+        SESSION_COOKIE,
+        AUTH.create_session(user, ttl_seconds=SESSION_TTL_SECONDS),
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+    return response
 
 
 @app.get("/healthz")

@@ -1,7 +1,12 @@
-# Production R3 — 2026-08-25
+# Production R4 Login — 2026-08-29
 
 This bundle incorporates fixes verified on the installed Harrow TimeBase server:
 
+- **Portal application login:** all portal pages except `/login`, `/healthz`, and static assets require a signed-in application account.
+- **Account management:** fresh installs create `admin1` through `admin5`; each user can change their password from the top-right menu, and a password change invalidates older sessions for that account.
+- **Secure local credential storage:** PBKDF2-HMAC-SHA256 password hashes and the HMAC session key are stored under `/var/lib/harrow-timebase/portal-auth` with access restricted to `harrow-upload`.
+- **Basic Auth migration:** fresh Nginx configuration uses the application login, while `apply-hotfix.sh` safely detects and disables Basic Auth only in Nginx sites proxying to the portal.
+- **Refactor and holiday range preservation:** the R4 login work is integrated without restoring the old monolithic controller/importer or removing inclusive holiday ranges.
 - **Inclusive holiday ranges:** holiday uploads now accept `date,end_date,description`; a blank end date represents one day, while a populated end date expands inclusively into canonical daily rows. The existing `date,description` format remains supported.
 - **Installer permission boundary fixed:** `install-program.sh` gives both isolated service accounts execute-only traversal of shared parent directories, retains group-restricted files, normalizes installed ownership/modes, and validates access before starting services. `install.sh` remains a compatibility entry point.
 - **Complete hotfix deployment:** `apply-hotfix.sh` now installs all runtime modules, Portal templates/static files, and systemd units instead of replacing only `harrow_timebase.py`.
@@ -16,8 +21,8 @@ This bundle incorporates fixes verified on the installed Harrow TimeBase server:
 ## Update an existing server
 
 ```bash
-unzip harrow-timebase-r3-hotfix.zip
-cd harrow-timebase-r3-hotfix
+unzip harrow-timebase-r4-login.zip
+cd harrow-timebase-r4-login
 sudo bash apply-hotfix.sh
 ```
 
@@ -65,7 +70,7 @@ The existing `missing_attendance_policy = zero_absent` behavior is unchanged.
 
 - FastAPI Attendance Upload Portal.
 - Responsive Web UI for CSV upload, zero-absence confirmation, status, and history.
-- Nginx HTTPS reverse proxy on TCP/8443 with Basic Authentication.
+- Nginx HTTPS reverse proxy on TCP/8443 with FastAPI application authentication.
 - Self-signed TLS certificate generation during first install; replaceable with an organization certificate.
 - Separate unprivileged `harrow-upload` service account; Portal cannot read Jamf API credentials.
 - `harrow-attendance-import.path` + `harrow-attendance-import.service` queue processing.
@@ -75,7 +80,7 @@ The existing `missing_attendance_policy = zero_absent` behavior is unchanged.
 - Immediate `reconcile` for same-day school-day uploads between 08:00 and 15:59.
 - Upload status JSON and append-only audit JSONL.
 - `Harrow-All-iPads` serial cache refreshed by TimeBase preflight for fast Portal-side validation.
-- `install.sh` installs OS/Python dependencies, Portal, Nginx, TLS, Basic Auth, and systemd upload services in one run.
+- `install.sh` installs OS/Python dependencies, Portal, Nginx, TLS, application login, and systemd upload services in one run.
 
 ## Existing behavior retained
 

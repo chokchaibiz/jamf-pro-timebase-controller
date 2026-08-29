@@ -42,6 +42,7 @@ py_files = [
     ROOT / "timebase" / "importer" / "handlers.py",
     ROOT / "device_query_service.py",
     ROOT / "portal" / "attendance_portal.py",
+    ROOT / "portal" / "auth_store.py",
 ]
 for path in py_files:
     parse(path)
@@ -135,6 +136,7 @@ for required in (
     "timebase/importer/handlers.py",
     "device_query_service.py",
     "portal/attendance_portal.py",
+    "portal/auth_store.py",
     "portal/templates",
     "systemd",
 ):
@@ -152,6 +154,9 @@ for required in (
     "chown root:root /etc/harrow-timebase/portal.json",
     "chmod 0644 /etc/harrow-timebase/portal.json",
     "Runtime permission checks: PASS",
+    "AUTH_DIR=/var/lib/harrow-timebase/portal-auth",
+    "auth_store.py",
+    "portal_auth_integration_check.py",
 ):
     if required not in installer:
         fail(f"install-program.sh permission safeguard missing: {required}")
@@ -166,8 +171,20 @@ for required in (
     "chown root:root /etc/harrow-timebase/portal.json",
     "chmod 0644 /etc/harrow-timebase/portal.json",
     "harrow-timebase cannot read portal.json",
+    "portal/auth_store.py",
+    "Initializing application login accounts",
+    "portal_auth_integration_check.py",
 ):
     if required not in hotfix:
         fail(f"apply-hotfix.sh permission repair missing: {required}")
+
+portal_source = (ROOT / "portal" / "attendance_portal.py").read_text(encoding="utf-8")
+for required in ("portal_authentication", 'app.get("/login"', 'app.post("/logout"', 'app.post("/change-password"'):
+    if required not in portal_source:
+        fail(f"portal authentication behavior missing: {required}")
+
+for nginx_config in (ROOT / "nginx" / "harrow-timebase.conf", ROOT / "nginx" / "harrow-timebase-https.example.conf"):
+    if "auth_basic" in nginx_config.read_text(encoding="utf-8"):
+        fail(f"obsolete Nginx Basic Authentication remains in {nginx_config.name}")
 
 print("Regression checks: PASS")

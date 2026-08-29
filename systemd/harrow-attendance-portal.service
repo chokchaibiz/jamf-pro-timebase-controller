@@ -12,6 +12,9 @@ EnvironmentFile=/etc/harrow-timebase/portal.env
 EnvironmentFile=/var/lib/harrow-timebase/shared/internal-api.env
 Environment=PORTAL_CONFIG=/etc/harrow-timebase/portal.json
 Environment=PYTHONPATH=/opt/harrow-timebase
+Environment=HARROW_AUTH_DIR=/var/lib/harrow-timebase/portal-auth
+Environment=HARROW_AUTH_COOKIE_SECURE=true
+Environment=HARROW_SESSION_TTL_SECONDS=28800
 ExecStart=/opt/harrow-timebase/venv/bin/uvicorn attendance_portal:app --host 127.0.0.1 --port 8090 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
 Restart=on-failure
 RestartSec=3s
@@ -24,7 +27,7 @@ ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 ReadOnlyPaths=/opt/harrow-timebase /etc/harrow-timebase/portal.json /var/lib/harrow-timebase/shared
-ReadWritePaths=/var/lib/harrow-timebase/portal-staging /var/lib/harrow-timebase/upload-queue
+ReadWritePaths=/var/lib/harrow-timebase/portal-staging /var/lib/harrow-timebase/upload-queue /var/lib/harrow-timebase/portal-auth
 
 [Install]
 WantedBy=multi-user.target
