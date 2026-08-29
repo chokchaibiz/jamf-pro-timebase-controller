@@ -256,6 +256,19 @@ Sign in with each account and immediately use the top-right user menu to change 
 
 For a fresh installation, the shared initial password can be overridden with `sudo env HARROW_DEFAULT_ADMIN_PASSWORD='your-password' bash install-program.sh`.
 
+Add another full portal administrator without changing existing accounts:
+
+```bash
+sudo -u harrow-upload env HARROW_NEW_USER_PASSWORD='SecurePasswordHere' \
+  /opt/harrow-timebase/venv/bin/python \
+  /opt/harrow-timebase/portal/auth_store.py add-user \
+  --auth-dir /var/lib/harrow-timebase/portal-auth \
+  --user admin6 \
+  --password-env HARROW_NEW_USER_PASSWORD
+```
+
+The username is normalized to lowercase, duplicates are rejected, and no service restart is required. Run the command as `harrow-upload` so the authentication files retain the correct ownership.
+
 ### User workflow
 
 1. Open `https://SERVER-IP:8443/`.

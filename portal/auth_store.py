@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import tempfile
 import time
@@ -23,6 +24,7 @@ from typing import Any, Iterator, Optional
 
 PBKDF2_ITERATIONS = 600_000
 SESSION_TTL_SECONDS = 8 * 60 * 60
+USERNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 
 
 def _b64e(data: bytes) -> str:
@@ -99,6 +101,30 @@ class AuthStore:
     @staticmethod
     def normalize_username(username: str) -> str:
         return username.strip().lower()
+
+    @classmethod
+    def validate_new_username(cls, username: str) -> str:
+        normalized = cls.normalize_username(username)
+        if not USERNAME_PATTERN.fullmatch(normalized):
+            raise ValueError(
+                "Username must be 1-64 characters and contain only lowercase letters, "
+                "numbers, dots, underscores, or hyphens"
+            )
+        return normalized
+
+    def add_user(self, username: str, password: str) -> str:
+        username = self.validate_new_username(username)
+        if len(password) < 8:
+            raise ValueError("Password must contain at least 8 characters")
+        with self._locked():
+            data = self._read_users_unlocked()
+            if username in data["users"]:
+                raise ValueError(f"Portal user already exists: {username}")
+            record = build_user_record(password)
+            record["created_at"] = int(time.time())
+            data["users"][username] = record
+            self._write_users_unlocked(data)
+        return username
 
     def authenticate(self, username: str, password: str) -> Optional[str]:
         username = self.normalize_username(username)
@@ -233,12 +259,27 @@ def main() -> None:
     init.add_argument("--user", action="append", dest="users", required=True)
     init.add_argument("--password-env", default="HARROW_DEFAULT_ADMIN_PASSWORD")
     init.add_argument("--overwrite", action="store_true")
+    add = sub.add_parser("add-user")
+    add.add_argument("--auth-dir", required=True)
+    add.add_argument("--user", required=True)
+    add.add_argument("--password-env", default="HARROW_NEW_USER_PASSWORD")
     args = parser.parse_args()
     if args.command == "init-users":
         password = os.environ.get(args.password_env, "")
         if not password:
             raise SystemExit(f"Environment variable {args.password_env} is required")
         initialize_users(Path(args.auth_dir), args.users, password, overwrite=args.overwrite)
+    elif args.command == "add-user":
+        password = os.environ.get(args.password_env, "")
+        if not password:
+            raise SystemExit(f"Environment variable {args.password_env} is required")
+        store = AuthStore(Path(args.auth_dir))
+        store.ensure_runtime()
+        try:
+            username = store.add_user(args.user, password)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        print(f"Added portal user: {username}")
 
 
 if __name__ == "__main__":

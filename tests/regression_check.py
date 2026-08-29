@@ -183,6 +183,11 @@ for required in ("portal_authentication", 'app.get("/login"', 'app.post("/logout
     if required not in portal_source:
         fail(f"portal authentication behavior missing: {required}")
 
+auth_source = (ROOT / "portal" / "auth_store.py").read_text(encoding="utf-8")
+for required in ("def add_user", 'sub.add_parser("add-user")', "HARROW_NEW_USER_PASSWORD"):
+    if required not in auth_source:
+        fail(f"portal add-user behavior missing: {required}")
+
 for nginx_config in (ROOT / "nginx" / "harrow-timebase.conf", ROOT / "nginx" / "harrow-timebase-https.example.conf"):
     if "auth_basic" in nginx_config.read_text(encoding="utf-8"):
         fail(f"obsolete Nginx Basic Authentication remains in {nginx_config.name}")
