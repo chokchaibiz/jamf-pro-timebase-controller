@@ -5,6 +5,7 @@ This bundle incorporates fixes verified on the installed Harrow TimeBase server:
 - **Portal application login:** all portal pages except `/login`, `/healthz`, and static assets require a signed-in application account.
 - **Account management:** fresh installs create `admin1` through `admin5`; each user can change their password from the top-right menu, and a password change invalidates older sessions for that account.
 - **Safe user creation:** `auth_store.py add-user` adds another administrator under the existing file lock without resetting accounts, passwords, or the session signing key.
+- **Functional drag-and-drop uploads:** both Attendance and Holiday drop zones now assign dropped CSV files to their forms, reject invalid/multiple files, and show drag, selected, and error states.
 - **Secure local credential storage:** PBKDF2-HMAC-SHA256 password hashes and the HMAC session key are stored under `/var/lib/harrow-timebase/portal-auth` with access restricted to `harrow-upload`.
 - **Basic Auth migration:** fresh Nginx configuration uses the application login, while `apply-hotfix.sh` safely detects and disables Basic Auth only in Nginx sites proxying to the portal.
 - **Refactor and holiday range preservation:** the R4 login work is integrated without restoring the old monolithic controller/importer or removing inclusive holiday ranges.

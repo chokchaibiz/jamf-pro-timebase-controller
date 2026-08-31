@@ -30,6 +30,7 @@ install_os_dependencies
 echo "Running bundle regression checks before installation..."
 python3 "$SRC_DIR/tests/regression_check.py"
 python3 "$SRC_DIR/tests/holiday_range_check.py"
+python3 "$SRC_DIR/tests/upload_drag_drop_check.py"
 
 if ! id harrow-timebase >/dev/null 2>&1; then
   useradd --system --home-dir /var/lib/harrow-timebase --create-home --shell /usr/sbin/nologin harrow-timebase
@@ -155,6 +156,7 @@ echo "Running runtime regression checks..."
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/holiday_range_check.py"
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/auth_regression_check.py"
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/portal_auth_integration_check.py"
+/opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/upload_drag_drop_check.py"
 
 # Prefer production configuration when bundled; preserve an existing installed config.
 CONFIG_SOURCE="$SRC_DIR/config.example.json"

@@ -157,6 +157,7 @@ for required in (
     "AUTH_DIR=/var/lib/harrow-timebase/portal-auth",
     "auth_store.py",
     "portal_auth_integration_check.py",
+    "upload_drag_drop_check.py",
 ):
     if required not in installer:
         fail(f"install-program.sh permission safeguard missing: {required}")
@@ -174,6 +175,7 @@ for required in (
     "portal/auth_store.py",
     "Initializing application login accounts",
     "portal_auth_integration_check.py",
+    "upload_drag_drop_check.py",
 ):
     if required not in hotfix:
         fail(f"apply-hotfix.sh permission repair missing: {required}")

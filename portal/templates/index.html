@@ -21,10 +21,11 @@
     <label>Attendance Date</label>
     <input type="date" name="attendance_date" value="{{ today }}" required>
     <label>Absent CSV File</label>
-    <label class="dropzone">
-      <input id="csvfile" type="file" name="file" accept=".csv,text/csv" required>
-      <span id="filename">ลากไฟล์ CSV มาวาง หรือคลิกเพื่อเลือกไฟล์</span>
+    <label class="dropzone" data-file-drop tabindex="0" role="button" aria-describedby="attendance-file-error">
+      <input id="csvfile" type="file" name="file" accept=".csv,text/csv" required data-file-input>
+      <span id="filename" data-file-label data-default-label="ลากไฟล์ CSV มาวาง หรือคลิกเพื่อเลือกไฟล์" aria-live="polite">ลากไฟล์ CSV มาวาง หรือคลิกเพื่อเลือกไฟล์</span>
     </label>
+    <span id="attendance-file-error" class="dropzone-error" data-file-error aria-live="assertive" hidden></span>
     <p class="hint">Header รองรับ: <code>Email Address</code>, <code>email_address</code>, <code>Email</code>, <code>emailaddress</code>, <code>user_email</code>, <code>student_email</code>. Email ซ้ำจะถูกตัดให้อัตโนมัติ.</p>
     <p class="ok">✓ หลัง Upload ระบบจะตรวจ Email กับ Jamf Inventory ของ <code>Harrow-All-iPads</code> และ resolve เป็น Serial ของ iPad ก่อนเปลี่ยน Room</p>
     <p class="hint">Default safety: 1 Email ต้องตรงกับ iPad ใน Master Group เพียง 1 เครื่อง หากไม่พบหรือพบหลายเครื่อง ระบบจะไม่เดาเลือกเครื่องและจะแจ้ง Error พร้อมรายการ Email</p>
@@ -54,10 +55,11 @@
       <form action="/upload-holidays" method="post" enctype="multipart/form-data" onsubmit="return confirm('ยืนยันการ Replace Holiday Calendar ปัจจุบันด้วยไฟล์นี้? ไฟล์เดิมจะถูก Backup อัตโนมัติ');">
         <input type="hidden" name="form_token" value="{{ form_token }}">
         <label>holidays.csv</label>
-        <label class="dropzone holiday-dropzone">
-          <input id="holidayfile" type="file" name="file" accept=".csv,text/csv" required>
-          <span id="holidayfilename">ลาก holidays.csv มาวาง หรือคลิกเพื่อเลือกไฟล์</span>
+        <label class="dropzone holiday-dropzone" data-file-drop tabindex="0" role="button" aria-describedby="holiday-file-error">
+          <input id="holidayfile" type="file" name="file" accept=".csv,text/csv" required data-file-input>
+          <span id="holidayfilename" data-file-label data-default-label="ลาก holidays.csv มาวาง หรือคลิกเพื่อเลือกไฟล์" aria-live="polite">ลาก holidays.csv มาวาง หรือคลิกเพื่อเลือกไฟล์</span>
         </label>
+        <span id="holiday-file-error" class="dropzone-error" data-file-error aria-live="assertive" hidden></span>
         <p class="hint">
           Header แนะนำ: <code>date,end_date,description</code><br>
           <code>end_date</code> เว้นว่างได้สำหรับวันเดียว หรือใส่วันสุดท้ายเพื่อสร้างช่วงวันหยุดแบบ inclusive<br>
@@ -102,10 +104,5 @@
 <li>Saturday/Sunday ถูก Skip อัตโนมัติโดยไม่ต้องใส่ใน holidays.csv</li>
 </ul>
 </section>
-<script>
-const f=document.getElementById('csvfile'), n=document.getElementById('filename');
-f?.addEventListener('change',()=>{n.textContent=f.files?.[0]?.name || 'ลากไฟล์ CSV มาวาง หรือคลิกเพื่อเลือกไฟล์';});
-const hf=document.getElementById('holidayfile'), hn=document.getElementById('holidayfilename');
-hf?.addEventListener('change',()=>{hn.textContent=hf.files?.[0]?.name || 'ลาก holidays.csv มาวาง หรือคลิกเพื่อเลือกไฟล์';});
-</script>
+<script src="/static/upload.js" defer></script>
 {% endblock %}

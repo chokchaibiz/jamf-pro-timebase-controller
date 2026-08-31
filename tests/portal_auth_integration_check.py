@@ -83,6 +83,8 @@ with tempfile.TemporaryDirectory() as td:
     assert response.status_code == 200
     assert "admin1" in response.text and "Change Password" in response.text
     assert "date,end_date,description" in response.text
+    assert response.text.count("data-file-drop") == 2
+    assert '<script src="/static/upload.js" defer></script>' in response.text
     assert response.headers["cache-control"] == "no-store"
 
     response = client.post(

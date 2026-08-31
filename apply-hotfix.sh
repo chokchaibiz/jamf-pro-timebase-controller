@@ -178,6 +178,7 @@ echo "[7/10] Running regression checks"
 "$PY" "$SRC_DIR/tests/holiday_range_check.py"
 "$PY" "$SRC_DIR/tests/auth_regression_check.py"
 "$PY" "$SRC_DIR/tests/portal_auth_integration_check.py"
+"$PY" "$SRC_DIR/tests/upload_drag_drop_check.py"
 
 echo "[8/10] Restarting portal/query/queue services"
 systemctl restart harrow-device-query.service
