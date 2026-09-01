@@ -158,6 +158,8 @@ for required in (
     "auth_store.py",
     "portal_auth_integration_check.py",
     "upload_drag_drop_check.py",
+    'SERVER_TIMEZONE="Asia/Bangkok"',
+    'timedatectl set-timezone "$SERVER_TIMEZONE"',
 ):
     if required not in installer:
         fail(f"install-program.sh permission safeguard missing: {required}")

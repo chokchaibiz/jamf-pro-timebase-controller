@@ -4,6 +4,7 @@ set -euo pipefail
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTH_DIR=/var/lib/harrow-timebase/portal-auth
 DEFAULT_ADMIN_PASSWORD="${HARROW_DEFAULT_ADMIN_PASSWORD:-harrow@dmin}"
+SERVER_TIMEZONE="Asia/Bangkok"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root: sudo bash install-program.sh" >&2
@@ -26,6 +27,17 @@ install_os_dependencies() {
 }
 
 install_os_dependencies
+
+if [[ ! -e "/usr/share/zoneinfo/$SERVER_TIMEZONE" ]]; then
+  echo "Timezone data is unavailable for $SERVER_TIMEZONE" >&2
+  exit 1
+fi
+if ! command -v timedatectl >/dev/null 2>&1; then
+  echo "timedatectl is required to configure the server timezone" >&2
+  exit 1
+fi
+echo "Configuring server timezone: $SERVER_TIMEZONE"
+timedatectl set-timezone "$SERVER_TIMEZONE"
 
 echo "Running bundle regression checks before installation..."
 python3 "$SRC_DIR/tests/regression_check.py"

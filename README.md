@@ -145,7 +145,7 @@ Recommended baseline:
 - outbound HTTPS/443 to the Jamf Pro tenant
 - DNS and NTP working
 
-The systemd timers explicitly use `Asia/Bangkok`, so the server can use another system timezone if required.
+The installer sets the server timezone to `Asia/Bangkok`, and the scheduled systemd timers also specify `Asia/Bangkok` explicitly.
 
 ## 4. Install
 
