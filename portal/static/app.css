@@ -7,3 +7,7 @@
 
 /* Functional file drop zones */
 .dropzone{transition:border-color .15s ease,background .15s ease,box-shadow .15s ease}.dropzone:focus-visible{outline:3px solid rgba(21,94,239,.25);outline-offset:2px}.dropzone.is-dragover{border-color:#155eef;background:#eef4ff;box-shadow:0 0 0 4px rgba(21,94,239,.12)}.dropzone.has-file{border-color:#12b76a;background:#ecfdf3}.dropzone.has-error{border-color:#f04438;background:#fff5f4}.dropzone-error{display:block;margin-top:7px;color:#b42318;font-size:13px}.dropzone-error[hidden]{display:none}
+
+/* Harrow crest on the portal sign-in card */
+.auth-logo{display:block;width:78px;height:auto;max-height:108px;object-fit:contain;margin:0 auto 18px;background:transparent;border-radius:0}
+.auth-card h1,.auth-lead{text-align:center}

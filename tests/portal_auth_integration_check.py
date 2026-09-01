@@ -64,6 +64,12 @@ with tempfile.TemporaryDirectory() as td:
 
     response = client.get("/login?next=https://example.com")
     assert response.status_code == 200 and 'name="next" value="/"' in response.text
+    assert 'src="/static/harrow-logo.svg"' in response.text
+    assert 'alt="Harrow School logo"' in response.text
+
+    response = client.get("/static/harrow-logo.svg")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/svg+xml")
 
     response = client.post(
         "/login",
