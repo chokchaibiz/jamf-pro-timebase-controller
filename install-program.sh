@@ -169,6 +169,7 @@ echo "Running runtime regression checks..."
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/auth_regression_check.py"
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/portal_auth_integration_check.py"
 /opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/upload_drag_drop_check.py"
+/opt/harrow-timebase/venv/bin/python "$SRC_DIR/tests/schedule_check.py"
 
 # Prefer production configuration when bundled; preserve an existing installed config.
 CONFIG_SOURCE="$SRC_DIR/config.example.json"
@@ -323,7 +324,7 @@ cat <<'MSG'
 
 Portal and upload queue are running now.
 The first connection may show a browser warning because the installer creates a self-signed TLS certificate. Replace it with an organization-trusted certificate for normal production use.
-Core Jamf 07:00/08:00/08:10/16:00 timers are NOT enabled automatically.
+Core Jamf 08:00/08:20/16:00 timers are NOT enabled automatically.
 
 RECOMMENDED NEXT STEPS:
   1. Sign in and immediately change the default password for every portal account.
@@ -337,11 +338,11 @@ RECOMMENDED NEXT STEPS:
        systemctl status harrow-attendance-portal.service harrow-attendance-import.path harrow-device-query.service
   6. When pilot validation is complete, enable core timers:
        sudo systemctl enable --now \
-         harrow-timebase-0700.timer \
-         harrow-timebase-0800.timer \
-         harrow-timebase-0810.timer \
+         harrow-timebase-school-start.timer \
+         harrow-timebase-attendance.timer \
          harrow-timebase-1600.timer \
-         harrow-timebase-reconcile.timer
+         harrow-timebase-reconcile.timer \
+         harrow-timebase-reconcile-extra.timer
 
 If host firewall is enabled, allow TCP/8443 only from the school's trusted admin network.
 For production Internet/routed access, terminate TLS (HTTPS) at Nginx or the organization's reverse proxy/load balancer.

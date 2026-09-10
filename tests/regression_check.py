@@ -175,7 +175,8 @@ for required in (
     "chmod 0644 /etc/harrow-timebase/portal.json",
     "harrow-timebase cannot read portal.json",
     "portal/auth_store.py",
-    "Initializing application login accounts",
+    "AUTH_DIR=/var/lib/harrow-timebase/portal-auth",
+    "Existing R4 portal users are required",
     "portal_auth_integration_check.py",
     "upload_drag_drop_check.py",
 ):

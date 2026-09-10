@@ -51,5 +51,8 @@
     "inventory_page_size": 100,
     "classic_email_fallback_enabled": true,
     "classic_fallback_concurrency": 4
+  },
+  "features": {
+    "wifi_management_enabled": false
   }
 }

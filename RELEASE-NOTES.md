@@ -1,3 +1,12 @@
+## Schedule update — 2026-09-10
+
+- School start moves to 08:00 and attendance to 08:20 Bangkok time.
+- Reconciliation starts at clock-aligned :00/:30, after boot, and at 09:20/10:20 Monday–Friday.
+- Portal attendance triggers begin at 08:20; manual overrides begin at 08:00.
+- Automatic Wi-Fi profile management is disabled by default, including preflight/verify dependencies. Existing profile scope is unchanged.
+- Daily actions apply current state if delayed, avoiding stale school-start/attendance writes.
+- Live hotfix migrates timer enablement/activity, drains jobs, backs up runtime and config, and attempts rollback on deployment failure before jobs resume. Server config/env contents are not replaced. See [SCHEDULE-UPGRADE.md](SCHEDULE-UPGRADE.md).
+
 # Production R4 Login — 2026-08-29
 
 This bundle incorporates fixes verified on the installed Harrow TimeBase server:

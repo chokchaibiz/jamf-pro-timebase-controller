@@ -1,0 +1,7 @@
+{
+  "injected_failure_exit": 23,
+  "runtime_restored": true,
+  "config_auth_unchanged": true,
+  "portal_query_services_restored": true,
+  "actual_systemd_rollback": "PASS"
+}
