@@ -213,7 +213,7 @@ def handle_attendance(ctx: JobContext) -> dict:
     reconcile_exit = None
     today = ctx.started.date()
     school_day, reason = controller.is_school_day(attendance_date)
-    if attendance_date == today and school_day and dtime(8, 0) <= ctx.started.time().replace(tzinfo=None) < dtime(16, 0):
+    if attendance_date == today and school_day and dtime(8, 20) <= ctx.started.time().replace(tzinfo=None) < dtime(16, 0):
         ctx.logger.info("Attendance import %s triggers immediate reconcile", ctx.job_id)
         proc = run_controller(["reconcile"])
         reconcile_exit = proc.returncode

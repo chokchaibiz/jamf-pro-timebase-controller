@@ -1,0 +1,32 @@
+2026-09-10T14:30:00.821169+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T14:30:00.828530+07:00 harrow-scheduler-test date[12612]: 2026-09-10T14:30:00,828354318+07:00
+2026-09-10T14:30:00.829334+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T14:30:00.829558+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.
+2026-09-10T15:00:00.836547+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T15:00:00.898055+07:00 harrow-scheduler-test date[12621]: 2026-09-10T15:00:00,897150788+07:00
+2026-09-10T15:00:00.898896+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T15:00:00.899039+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.
+2026-09-10T15:30:00.840126+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T15:30:00.900482+07:00 harrow-scheduler-test date[12632]: 2026-09-10T15:30:00,899054787+07:00
+2026-09-10T15:30:00.901884+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T15:30:00.902072+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.
+2026-09-10T16:00:00.846910+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T16:00:00.908742+07:00 harrow-scheduler-test date[12639]: 2026-09-10T16:00:00,907874217+07:00
+2026-09-10T16:00:00.909438+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T16:00:00.909630+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.
+2026-09-10T16:30:00.830053+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T16:30:00.849281+07:00 harrow-scheduler-test date[12650]: 2026-09-10T16:30:00,848635861+07:00
+2026-09-10T16:30:00.850497+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T16:30:00.850758+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.
+2026-09-10T17:00:00.834412+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T17:00:00.850767+07:00 harrow-scheduler-test date[12657]: 2026-09-10T17:00:00,850247080+07:00
+2026-09-10T17:00:00.851788+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T17:00:00.852346+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.
+2026-09-10T17:30:00.832534+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T17:30:00.847915+07:00 harrow-scheduler-test date[12668]: 2026-09-10T17:30:00,847482346+07:00
+2026-09-10T17:30:00.848905+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T17:30:00.849323+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.
+2026-09-10T21:45:08.725841+07:00 harrow-scheduler-test systemd[1]: Starting harrow-schedule-observer.service - Read-only witness for scheduler calendar test...
+2026-09-10T21:45:08.758506+07:00 harrow-scheduler-test date[12702]: 2026-09-10T21:45:08,740729576+07:00
+2026-09-10T21:45:08.759283+07:00 harrow-scheduler-test systemd[1]: harrow-schedule-observer.service: Deactivated successfully.
+2026-09-10T21:45:08.759426+07:00 harrow-scheduler-test systemd[1]: Finished harrow-schedule-observer.service - Read-only witness for scheduler calendar test.

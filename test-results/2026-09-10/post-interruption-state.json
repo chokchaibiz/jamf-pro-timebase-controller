@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-09-10T21:58:37.100465+07:00",
+  "master_membership_unchanged": true,
+  "changed_room_count": 5,
+  "original_room_counts": {
+    "100": 5
+  },
+  "current_room_counts": {
+    "200": 5
+  },
+  "read_only_check": true,
+  "cause": "not established"
+}

@@ -3,10 +3,10 @@
 
 Actions:
   preflight  - Validate Jamf objects, group criteria, scope, credentials and local data.
-  0700       - School day only: set all Harrow iPads Room=100 and verify In-Harrow.
-  0800       - School day only: resolve absent Email Address CSV to iPads, then apply Room=200; missing CSV can mean zero absent by policy.
-  0810       - School day only: ensure attendance state is valid, then add In-Harrow to WiFi-Harrow scope.
-  1600       - School day only: remove In-Harrow from WiFi-Harrow scope, then set all Harrow iPads Room=200.
+  school-start - 08:00 timer entry point; reconcile current state if delayed.
+  attendance - 08:20 timer entry point; reconcile current state if delayed.
+  0810       - Legacy Wi-Fi action; disabled by default and no longer scheduled.
+  1600       - 16:00 timer entry point; reconcile current state if delayed.
   reconcile  - Calculate desired state from Bangkok local date/time and repair drift idempotently.
   verify     - Report/validate current state without changing Jamf.
   wifi-on    - Manually add In-Harrow to WiFi-Harrow targets (guarded by attendance by default).
@@ -475,6 +475,9 @@ def load_config(path: Path) -> dict:
     if not (0.5 <= min_coverage <= 1.0):
         raise ConfigError("safety.email_inventory_min_coverage must be between 0.5 and 1.0")
     cfg["safety"]["email_inventory_min_coverage"] = min_coverage
+    wifi_enabled = cfg.get("features", {}).get("wifi_management_enabled", False)
+    if not isinstance(wifi_enabled, bool):
+        raise ConfigError("features.wifi_management_enabled must be a boolean")
     return cfg
 
 
@@ -606,7 +609,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reason", default="", help="Optional manual override reason")
     parser.add_argument(
         "action",
-        choices=["preflight", "0700", "0800", "0810", "1600", "reconcile", "verify", "wifi-on", "wifi-off", "manual-out", "manual-clear"],
+        choices=["preflight", "school-start", "attendance", "0810", "1600", "reconcile", "verify", "wifi-on", "wifi-off", "manual-out", "manual-clear"],
     )
     return parser.parse_args()
 
@@ -623,10 +626,10 @@ def main() -> int:
             if args.action == "preflight":
                 result = controller.preflight()
                 print(json.dumps(result, indent=2, sort_keys=True))
-            elif args.action == "0700":
-                controller.action_0700()
-            elif args.action == "0800":
-                controller.action_0800()
+            elif args.action == "school-start":
+                controller.action_school_start()
+            elif args.action == "attendance":
+                controller.action_attendance()
             elif args.action == "0810":
                 controller.action_0810()
             elif args.action == "1600":

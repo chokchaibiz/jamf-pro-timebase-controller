@@ -1,0 +1,10 @@
+{
+  "portal_login": "PASS",
+  "csv_upload": "PASS",
+  "queue_import": "PASS",
+  "immediate_reconcile": "PASS",
+  "result_in": 4,
+  "result_out": 1,
+  "wall_time_bangkok": "2026-09-10T14:27:57.517807+07:00",
+  "original_rooms_restored": true
+}

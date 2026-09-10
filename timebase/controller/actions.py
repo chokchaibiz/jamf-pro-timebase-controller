@@ -18,6 +18,9 @@ from .types import (
 
 
 class ControllerActionsMixin:
+    def wifi_management_enabled(self) -> bool:
+        return self.cfg.get("features", {}).get("wifi_management_enabled", False)
+
     def preflight(self) -> dict:
         self.logger.info("Starting preflight")
         catalog = self.groups(refresh=True)
@@ -45,7 +48,7 @@ class ControllerActionsMixin:
 
         profiles = self.profiles(refresh=True)
         assure_id = self.require_profile(self.profile_names["assure"])
-        wifi_id = self.require_profile(self.profile_names["wifi"])
+        wifi_id = None
         assure_xml = self.jamf.get_profile_xml(assure_id)
         assure_targets = self.jamf.profile_target_groups(assure_xml)
         assure_exclusions = self.jamf.profile_exclusion_groups(assure_xml)
@@ -54,13 +57,15 @@ class ControllerActionsMixin:
         if out_group.name not in assure_exclusions:
             raise PreflightError(f"ASSURE must exclude Smart Group '{out_group.name}'")
 
-        wifi_xml = self.jamf.get_profile_xml(wifi_id)
-        scope = wifi_xml.find("scope")
-        if scope is None:
-            raise PreflightError("WiFi-Harrow has no scope")
-        all_mobile = (scope.findtext("all_mobile_devices") or "false").strip().lower()
-        if all_mobile == "true":
-            raise PreflightError("WiFi-Harrow must not have all_mobile_devices=true")
+        if self.wifi_management_enabled():
+            wifi_id = self.require_profile(self.profile_names["wifi"])
+            wifi_xml = self.jamf.get_profile_xml(wifi_id)
+            scope = wifi_xml.find("scope")
+            if scope is None:
+                raise PreflightError("WiFi-Harrow has no scope")
+            all_mobile = (scope.findtext("all_mobile_devices") or "false").strip().lower()
+            if all_mobile == "true":
+                raise PreflightError("WiFi-Harrow must not have all_mobile_devices=true")
 
         holidays = self.holiday_map()
         self.logger.info(
@@ -255,6 +260,9 @@ class ControllerActionsMixin:
         return len(present), len(effective_out)
 
     def set_wifi_scope(self, enabled: bool, enforce_attendance_guard: bool = True) -> None:
+        if not self.wifi_management_enabled():
+            self.logger.info("Wi-Fi profile management disabled; scope unchanged")
+            return
         in_group = self.in_group()
         wifi_id = self.require_profile(self.profile_names["wifi"])
         if enabled and enforce_attendance_guard and self.cfg["safety"].get("require_attendance_for_wifi", True):
@@ -278,25 +286,18 @@ class ControllerActionsMixin:
             )
         self.logger.info("WiFi-Harrow target %s verified: %s", in_group.name, "ON" if enabled else "OFF")
 
-    def action_0700(self) -> None:
-        school_day, reason = self.is_school_day()
-        if not school_day:
-            self.logger.info("07:00 skipped: %s", reason)
-            return
-        self.preflight()
-        self.set_wifi_scope(False, enforce_attendance_guard=False)
-        self.set_all_in()
+    def action_school_start(self) -> None:
+        # A job delayed by a lock must apply the current phase, not undo attendance.
+        self.reconcile()
 
-    def action_0800(self) -> None:
-        school_day, reason = self.is_school_day()
-        if not school_day:
-            self.logger.info("08:00 skipped: %s", reason)
-            return
-        self.preflight()
-        present, absent = self.apply_attendance()
-        self.logger.info("08:00 attendance complete: present=%d absent=%d", present, absent)
+    def action_attendance(self) -> None:
+        self.reconcile()
 
     def action_0810(self) -> None:
+        # Retained for explicit future use; no timer schedules this action.
+        if not self.wifi_management_enabled():
+            self.logger.info("Wi-Fi action skipped: profile management disabled")
+            return
         school_day, reason = self.is_school_day()
         if not school_day:
             self.logger.info("08:10 skipped: %s", reason)
@@ -307,14 +308,7 @@ class ControllerActionsMixin:
         self.logger.info("08:10 WiFi ON complete: present=%d absent=%d", present, absent)
 
     def action_1600(self) -> None:
-        school_day, reason = self.is_school_day()
-        if not school_day:
-            self.logger.info("16:00 skipped: %s", reason)
-            return
-        self.preflight()
-        self.set_wifi_scope(False, enforce_attendance_guard=False)
-        self.set_all_out()
-        self.purge_expired_manual_overrides(clear_all=True)
+        self.reconcile()
 
     def verify_current(self) -> dict:
         self.preflight()
@@ -322,8 +316,10 @@ class ControllerActionsMixin:
         actual_in_all, actual_out_all = self.current_in_out()
         actual_in = actual_in_all & master
         actual_out = actual_out_all & master
-        wifi_id = self.require_profile(self.profile_names["wifi"])
-        wifi_targets = self.jamf.profile_target_groups(self.jamf.get_profile_xml(wifi_id))
+        wifi_targets = None
+        if self.wifi_management_enabled():
+            wifi_id = self.require_profile(self.profile_names["wifi"])
+            wifi_targets = self.jamf.profile_target_groups(self.jamf.get_profile_xml(wifi_id))
         status = {
             "timestamp": self.now().isoformat(),
             "school_day": self.is_school_day()[0],
@@ -332,7 +328,8 @@ class ControllerActionsMixin:
             "out_harrow": len(actual_out),
             "unclassified": len(master - actual_in - actual_out),
             "overlap": len(actual_in & actual_out),
-            "wifi_target_in_harrow": self.in_group().name in wifi_targets,
+            "wifi_management_enabled": self.wifi_management_enabled(),
+            "wifi_target_in_harrow": None if wifi_targets is None else self.in_group().name in wifi_targets,
             "manual_out_overrides": len(self.active_manual_overrides(master)),
         }
         self.logger.info("Current state: %s", json.dumps(status, sort_keys=True))
@@ -352,15 +349,12 @@ class ControllerActionsMixin:
             return
 
         t = now.time().replace(tzinfo=None)
-        if t < dtime(7, 0):
+        if t < dtime(8, 0):
             self.set_wifi_scope(False, enforce_attendance_guard=False)
             self.set_all_out()
-        elif t < dtime(8, 0):
+        elif t < dtime(8, 20):
             self.set_wifi_scope(False, enforce_attendance_guard=False)
             self.set_all_in()
-        elif t < dtime(8, 10):
-            self.set_wifi_scope(False, enforce_attendance_guard=False)
-            self.apply_attendance()
         elif t < dtime(16, 0):
             self.apply_attendance()
             self.set_wifi_scope(True, enforce_attendance_guard=True)

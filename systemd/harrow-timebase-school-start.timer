@@ -1,11 +1,12 @@
 [Unit]
-Description=Harrow TimeBase 0800 schedule
+Description=Harrow TimeBase school-start at 08:00:00 Bangkok
 
 [Timer]
 OnCalendar=Mon..Fri *-*-* 08:00:00 Asia/Bangkok
 AccuracySec=1s
+RandomizedDelaySec=0
 Persistent=false
-Unit=harrow-timebase@0800.service
+Unit=harrow-timebase@school-start.service
 
 [Install]
 WantedBy=timers.target

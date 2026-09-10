@@ -1,0 +1,8 @@
+NEXT                            LEFT LAST                         PASSED UNIT                                  ACTIVATES
+Thu 2026-09-10 14:30:00 +07 4min 42s Thu 2026-09-10 14:24:43 +07 33s ago harrow-timebase-reconcile.timer       harrow-timebase-reconcile.service
+Thu 2026-09-10 16:00:00 +07 1h 34min -                                 - harrow-timebase-1600.timer            harrow-timebase@1600.service
+Fri 2026-09-11 08:00:00 +07      17h -                                 - harrow-timebase-school-start.timer    harrow-timebase@school-start.service
+Fri 2026-09-11 08:20:00 +07      17h -                                 - harrow-timebase-attendance.timer      harrow-timebase@attendance.service
+Fri 2026-09-11 09:20:00 +07      18h -                                 - harrow-timebase-reconcile-extra.timer harrow-timebase-reconcile.service
+
+5 timers listed.

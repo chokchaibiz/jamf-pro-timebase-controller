@@ -1,0 +1,13 @@
+{
+  "upgrade": "PASS",
+  "repeat_upgrade": "PASS",
+  "boot_id_unchanged": true,
+  "production_config_auth_nginx_unchanged": true,
+  "expected_timers_enabled_and_active": true,
+  "services_healthy": true,
+  "drain_test_duration_seconds": 30,
+  "upgrade_elapsed_seconds": 33.34,
+  "portal_unavailable_observed_seconds": 29.59,
+  "actual_systemd_calendars_valid": true,
+  "automatic_jamf_writes_gated_during_upgrade": true
+}

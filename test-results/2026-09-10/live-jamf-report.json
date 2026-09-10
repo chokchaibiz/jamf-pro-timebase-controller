@@ -1,0 +1,67 @@
+{
+  "phases": [
+    {
+      "phase": "07:59",
+      "in": 0,
+      "out": 5
+    },
+    {
+      "phase": "08:00",
+      "in": 5,
+      "out": 0
+    },
+    {
+      "phase": "08:19",
+      "in": 5,
+      "out": 0
+    },
+    {
+      "phase": "08:20",
+      "in": 3,
+      "out": 2
+    },
+    {
+      "phase": "09:20",
+      "in": 3,
+      "out": 2
+    },
+    {
+      "phase": "10:20",
+      "in": 3,
+      "out": 2
+    },
+    {
+      "phase": "manual override",
+      "in": 2,
+      "out": 3
+    },
+    {
+      "phase": "manual clear",
+      "in": 3,
+      "out": 2
+    },
+    {
+      "phase": "direct CSV replacement invalidates cache",
+      "in": 4,
+      "out": 1
+    },
+    {
+      "phase": "16:00",
+      "in": 0,
+      "out": 5
+    },
+    {
+      "phase": "weekend",
+      "in": 0,
+      "out": 5
+    },
+    {
+      "phase": "holiday",
+      "in": 0,
+      "out": 5
+    }
+  ],
+  "room_puts": 24,
+  "failures": [],
+  "wifi_scope_unchanged": true
+}

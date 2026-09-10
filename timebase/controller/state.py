@@ -114,8 +114,8 @@ class ControllerStateMixin:
         local_time = current.time().replace(tzinfo=None)
         if not school_day:
             raise ControllerError(f"Manual Out-Harrow override is not needed because today is {school_reason}")
-        if not (dtime(7, 0) <= local_time < dtime(16, 0)):
-            raise ControllerError("Manual Out-Harrow override is allowed only from 07:00 until before 16:00")
+        if not (dtime(8, 0) <= local_time < dtime(16, 0)):
+            raise ControllerError("Manual Out-Harrow override is allowed only from 08:00 until before 16:00")
         master = self.master_members()
         if serial not in master:
             raise ControllerError(f"Device {serial} is not a member of {self.group_names['master']}")

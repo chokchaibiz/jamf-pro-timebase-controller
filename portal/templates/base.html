@@ -3,15 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Harrow Attendance{% endblock %}</title>
+  <title>{% block title %}Harrow TimeBase{% endblock %}</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <header class="topbar">
-  <div><strong>Harrow TimeBase Upload</strong><span class="sub">TimeBase Controller</span></div>
-  <nav><a href="/">Upload</a><a href="/device-override">Device Override</a><a href="/history">History</a></nav>
+  <div class="brand"><strong>Harrow TimeBase</strong><span class="sub">TimeBase Controller</span></div>
+  <div class="topbar-right">
+    <nav><a href="/">Upload</a><a href="/device-override">Device Override</a><a href="/history">History</a></nav>
+    <details class="user-menu">
+      <summary><span class="user-avatar">{{ request.state.user[:1]|upper }}</span><span class="user-name">{{ request.state.user }}</span></summary>
+      <div class="user-menu-panel">
+        <div class="user-menu-title">Signed in as <strong>{{ request.state.user }}</strong></div>
+        <a href="/change-password">Change Password</a>
+        <form action="/logout" method="post">
+          <input type="hidden" name="form_token" value="{{ portal_form_token }}">
+          <button type="submit" class="logout-link">Logout</button>
+        </form>
+      </div>
+    </details>
+  </div>
 </header>
 <main class="container">{% block content %}{% endblock %}</main>
-<footer>Internal administration portal • Authenticated by Nginx</footer>
+<footer>Harrow TimeBase • Internal administration portal</footer>
 </body>
 </html>
