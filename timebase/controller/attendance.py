@@ -14,6 +14,33 @@ from urllib.parse import quote
 from .types import AttendanceError, ConfigError, ControllerError
 
 
+def unmatched_email_policy(cfg: dict) -> str:
+    policy = str(cfg.get("attendance", {}).get("unmatched_email_policy", "skip")).strip().lower()
+    if policy not in {"skip", "error"}:
+        raise ConfigError("attendance.unmatched_email_policy must be 'skip' or 'error'")
+    return policy
+
+
+def validate_email_resolution(cfg, logger, emails, unresolved, ambiguous):
+    """Shared policy for portal imports and direct attendance files."""
+    policy = unmatched_email_policy(cfg)
+    problems = []
+    if unresolved and policy == "error":
+        problems.append(f"email(s) not found in {cfg['groups']['master']}: {unresolved[:30]}")
+    if ambiguous:
+        problems.append(f"email(s) matched multiple master iPads: {dict(list(ambiguous.items())[:20])}")
+    if problems:
+        raise AttendanceError("Attendance email resolution failed: " + "; ".join(problems))
+    if unresolved:
+        logger.warning(
+            "Attendance email resolution: matched_emails=%d skipped_emails=%d; "
+            "email(s) not found in %s: %s; unmatched emails will be retried next run",
+            len(emails) - len(unresolved), len(unresolved), cfg['groups']['master'], unresolved,
+        )
+        if len(unresolved) == len(emails):
+            logger.warning("No attendance emails matched: treating zero devices as absent; manual overrides still apply")
+
+
 class ControllerAttendanceMixin:
     @staticmethod
     def _inventory_dict(value) -> dict:
@@ -246,6 +273,8 @@ class ControllerAttendanceMixin:
             data = json.loads(cache_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return None
+        if data.get("unresolved_emails"):
+            return None  # Partial resolutions must retry against current inventory.
         if data.get("attendance_file") != str(path) or data.get("sha256") != sha256:
             return None
         raw_serials = data.get("resolved_serials", [])
@@ -262,7 +291,8 @@ class ControllerAttendanceMixin:
         return serials
 
     def write_attendance_resolution_cache(
-        self, path: Path, sha256: str, emails: Iterable[str], serials: Iterable[str], d: Optional[date] = None
+        self, path: Path, sha256: str, emails: Iterable[str], serials: Iterable[str], d: Optional[date] = None,
+        *, unresolved: Iterable[str] = (),
     ) -> None:
         cache_path = self.attendance_resolution_path(d)
         if self.dry_run:
@@ -274,6 +304,7 @@ class ControllerAttendanceMixin:
             "attendance_file": str(path),
             "sha256": sha256,
             "identity_field": "email_address",
+            "unresolved_emails": sorted(set(unresolved)),
             "emails": sorted({str(x).strip().lower() for x in emails if str(x).strip()}),
             "resolved_serials": sorted({str(x).strip().upper() for x in serials if str(x).strip()}),
             "resolved_at": self.now().isoformat(),
@@ -348,14 +379,7 @@ class ControllerAttendanceMixin:
             return cached_serials, path, sha256
 
         serials, unresolved, ambiguous = self.resolve_absent_emails(master, emails)
-        if unresolved or ambiguous:
-            parts = []
-            if unresolved:
-                parts.append(f"email(s) not found in {self.group_names['master']}: {unresolved[:20]}")
-            if ambiguous:
-                preview = {k: v for k, v in list(ambiguous.items())[:10]}
-                parts.append(f"email(s) matched multiple master iPads: {preview}")
-            raise AttendanceError("Attendance email resolution failed: " + "; ".join(parts))
+        validate_email_resolution(self.cfg, self.logger, emails, unresolved, ambiguous)
 
         fraction = (len(serials) / len(master)) if master else 1.0
         max_fraction = float(self.cfg["safety"]["max_absent_fraction"])
@@ -367,7 +391,7 @@ class ControllerAttendanceMixin:
             "Attendance email resolution complete: absent_emails=%d resolved_devices=%d",
             len(emails), len(serials),
         )
-        self.write_attendance_resolution_cache(path, sha256, emails, serials, d)
+        self.write_attendance_resolution_cache(path, sha256, emails, serials, d, unresolved=unresolved)
         return serials, path, sha256
 
     def write_attendance_marker(self, path: Path, sha256: str, absent_count: int) -> None:

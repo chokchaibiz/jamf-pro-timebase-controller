@@ -6,6 +6,12 @@
 <h1>{{ 'Holiday Calendar Job' if job.job_type == 'holiday' else ('Device Override Job' if job.job_type == 'device_override' else 'Attendance Job') }}</h1>
 <div class="pill {{ job.status|lower }}">{{ job.status }}</div>
 <p class="message">{{ job.message }}</p>
+{% if job.skipped_email_count|default(0) %}
+<div role="note"><strong>Unmatched emails skipped ({{ job.skipped_email_count }})</strong>
+<ul>{% for email in job.skipped_emails %}<li>{{ email }}</li>{% endfor %}</ul>
+{% if job.matched_email_count == 0 %}<p>No emails matched. Zero devices are treated as absent; manual overrides still apply.</p>{% endif %}
+</div>
+{% endif %}
 <dl>
   <dt>Job ID</dt><dd><code>{{ job.job_id }}</code></dd>
   <dt>Type</dt><dd>{{ 'Holiday Calendar' if job.job_type == 'holiday' else ('Device Override' if job.job_type == 'device_override' else 'Attendance') }}</dd>
@@ -18,6 +24,7 @@
   {% if job.holiday_count %}<dt>Holiday dates</dt><dd>{{ job.holiday_count }}</dd>{% endif %}
   {% if job.holiday_range_count|default(0) %}<dt>Range rows</dt><dd>{{ job.holiday_range_count }}</dd>{% endif %}
   {% if job.absent_count is defined %}<dt>Absent emails</dt><dd>{{ job.absent_count }}</dd>{% endif %}
+  {% if job.matched_email_count is defined %}<dt>Matched emails</dt><dd>{{ job.matched_email_count }}</dd>{% endif %}
   {% if job.absent_device_count is defined %}<dt>Resolved iPads</dt><dd>{{ job.absent_device_count }}</dd>{% endif %}
   {% if job.present_count is defined %}<dt>Present</dt><dd>{{ job.present_count }}</dd>{% endif %}
   {% if job.duplicate_count %}<dt>Duplicates removed</dt><dd>{{ job.duplicate_count }}</dd>{% endif %}

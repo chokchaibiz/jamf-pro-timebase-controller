@@ -48,6 +48,7 @@
   "attendance": {
     "identity_field": "email_address",
     "email_match_policy": "unique",
+    "unmatched_email_policy": "skip",
     "inventory_page_size": 100,
     "classic_email_fallback_enabled": true,
     "classic_fallback_concurrency": 4

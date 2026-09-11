@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from attendance_common import AttendanceCSVError, parse_csv_path
 from holiday_common import parse_holiday_csv_path
 from harrow_timebase import TimeBaseController
+from timebase.controller.attendance import validate_email_resolution
 from .storage import (
     archive_attendance,
     archive_holidays,
@@ -151,6 +152,7 @@ def handle_attendance(ctx: JobContext) -> dict:
     controller.preflight()
     master = controller.master_members()
 
+    unresolved: list[str] = []
     if action == "zero_absent":
         emails: list[str] = []
         resolved_serials: set[str] = set()
@@ -167,18 +169,7 @@ def handle_attendance(ctx: JobContext) -> dict:
         duplicates = parsed.duplicate_count
 
         resolved_serials, unresolved, ambiguous = controller.resolve_absent_emails(master, emails)
-        if unresolved or ambiguous:
-            details = []
-            if unresolved:
-                details.append(
-                    f"{len(unresolved)} email(s) not found in {ctx.cfg['groups']['master']}: {unresolved[:30]}"
-                )
-            if ambiguous:
-                preview = {k: v for k, v in list(ambiguous.items())[:20]}
-                details.append(
-                    f"{len(ambiguous)} email(s) matched multiple master iPads: {preview}"
-                )
-            raise AttendanceCSVError("; ".join(details))
+        validate_email_resolution(ctx.cfg, ctx.logger, emails, unresolved, ambiguous)
 
         fraction = (len(resolved_serials) / len(master)) if master else 1.0
         max_fraction = float(ctx.cfg["safety"]["max_absent_fraction"])
@@ -198,6 +189,7 @@ def handle_attendance(ctx: JobContext) -> dict:
             emails,
             resolved_serials,
             attendance_date,
+            unresolved=unresolved,
         )
     else:
         resolution_cache = controller.attendance_resolution_path(attendance_date)
@@ -236,10 +228,19 @@ def handle_attendance(ctx: JobContext) -> dict:
         "Attendance job %s complete status=%s absent_emails=%d resolved_devices=%d",
         ctx.job_id, status, len(emails), len(resolved_serials),
     )
+    if unresolved:
+        message += (
+            f" Warning: {len(unresolved)} unmatched email(s) skipped; "
+            f"{len(emails) - len(unresolved)} email(s) matched. "
+            "Unmatched emails will be retried on reconciliation."
+        )
     return ctx.result(
         status=status,
         message=message,
         absent_count=len(emails),
+        matched_email_count=len(emails) - len(unresolved),
+        skipped_email_count=len(unresolved),
+        skipped_emails=unresolved,
         absent_device_count=len(resolved_serials),
         present_count=len(master) - len(resolved_serials),
         master_count=len(master),
