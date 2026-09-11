@@ -72,6 +72,7 @@ class HotfixTests(unittest.TestCase):
         config.mkdir(parents=True)
         cfg=json.loads((ROOT/'config.production.json').read_text())
         cfg.pop('features')
+        cfg['attendance'].pop('unmatched_email_policy', None)
         cfg['paths']['lock_file']=str(root/'controller.lock')
         (config/'config.json').write_text(json.dumps(cfg)+'\n')
         (config/'portal.json').write_text('{"production_setting": "keep"}\n')
@@ -120,7 +121,8 @@ class HotfixTests(unittest.TestCase):
             target,config,units,prior,runner=self.setup_server(root)
             before={p.name:p.read_bytes() for p in config.iterdir()}
             (root/'busy-once').touch()
-            self.run_hotfix(root,runner)
+            proc = self.run_hotfix(root,runner)
+            self.assertIn('Attendance unmatched email policy after upgrade: skip', proc.stdout)
             self.assertEqual(before,{p.name:p.read_bytes() for p in config.iterdir()})
             state=json.loads((root/'state.json').read_text())
             for u in OLD: self.assertFalse((units/u).exists())
@@ -159,6 +161,31 @@ class HotfixTests(unittest.TestCase):
             state=json.loads((root/'state.json').read_text())
             for u in OLD+KEEP+SERVICES: self.assertEqual(state[u],prior[u])
             for u in NEW: self.assertFalse((units/u).exists())
+
+    def test_explicit_strict_policy_preserved(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target, config, units, prior, runner = self.setup_server(root)
+            path = config/'config.json'
+            cfg = json.loads(path.read_text())
+            cfg['attendance']['unmatched_email_policy'] = 'error'
+            path.write_text(json.dumps(cfg))
+            before = path.read_bytes()
+            proc = self.run_hotfix(root, runner)
+            self.assertIn('Attendance unmatched email policy after upgrade: error', proc.stdout)
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_invalid_policy_aborts_before_pausing(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target, config, units, prior, runner = self.setup_server(root)
+            path = config/'config.json'
+            cfg = json.loads(path.read_text())
+            cfg['attendance']['unmatched_email_policy'] = 'typo'
+            path.write_text(json.dumps(cfg))
+            self.run_hotfix(root, runner, success=False)
+            self.assertEqual(json.loads((root/'state.json').read_text()), prior)
+            self.assertFalse((target/'backups').exists())
 
     def test_missing_r4_auth_aborts_before_pausing(self):
         with TemporaryDirectory() as tmp:

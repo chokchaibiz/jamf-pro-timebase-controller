@@ -466,6 +466,9 @@ def load_config(path: Path) -> dict:
         )
     cfg["safety"]["missing_attendance_policy"] = attendance_policy
 
+    from timebase.controller.attendance import unmatched_email_policy
+    cfg.setdefault("attendance", {})["unmatched_email_policy"] = unmatched_email_policy(cfg)
+
     email_policy = str(cfg.get("attendance", {}).get("email_match_policy", "unique")).strip().lower()
     if email_policy not in {"unique", "all_matches"}:
         raise ConfigError("attendance.email_match_policy must be either 'unique' or 'all_matches'")

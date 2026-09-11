@@ -36,12 +36,16 @@ if not isinstance(users, dict) or not isinstance(users.get('users'), dict) or no
 if len((auth / 'session.key').read_bytes()) < 32:
     raise SystemExit('Existing R4 portal session key is invalid')
 cfg = json.loads(Path(sys.argv[2]).read_text())
+policy = str(cfg.get('attendance', {}).get('unmatched_email_policy', 'skip')).strip().lower()
+if policy not in {'skip', 'error'}:
+    raise SystemExit('attendance.unmatched_email_policy must be skip or error')
+print('Attendance unmatched email policy after upgrade: ' + policy)
 if cfg.get('timezone') != 'Asia/Bangkok':
     raise SystemExit('Schedule migration requires timezone=Asia/Bangkok')
 if cfg.get('features', {}).get('wifi_management_enabled', False) is not False:
     raise SystemExit('Set features.wifi_management_enabled=false before this migration')
 CHECK
-for check in regression_check.py runtime_regression_check.py refactor_behavior_check.py holiday_range_check.py schedule_check.py auth_regression_check.py portal_auth_integration_check.py upload_drag_drop_check.py; do
+for check in regression_check.py runtime_regression_check.py refactor_behavior_check.py holiday_range_check.py schedule_check.py unmatched_attendance_check.py auth_regression_check.py portal_auth_integration_check.py upload_drag_drop_check.py; do
   "$PY" "$SRC_DIR/tests/$check"
 done
 for unit in "$SRC_DIR"/systemd/*.timer; do
@@ -308,3 +312,5 @@ echo "Schedule hotfix installed. Backup: $BACKUP"
 echo "Preserved: config/env contents, credentials, R4 portal accounts/session key, Nginx, attendance/history, holidays and overrides."
 echo "Wi-Fi management defaults OFF. No reboot required."
 echo "If resuming a unit fails, fix it and start that unit; do not restore code while jobs are running."
+
+echo "Attendance: unmatched emails default to skip; an explicit attendance.unmatched_email_policy=error remains strict."

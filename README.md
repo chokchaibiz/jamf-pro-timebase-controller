@@ -64,7 +64,7 @@ Reconciliation runs every day at **:00 and :30**, approximately three minutes af
 4. A process lock prevents overlapping 08:00/08:20/16:00/reconcile jobs.
 5. Wi-Fi management is disabled by default; the optional future implementation retains its attendance guard.
 6. Production policy is `missing_attendance_policy = "zero_absent"`. If today’s `absent-YYYY-MM-DD.csv` is missing, the controller does **not** fail: it treats `Absent = 0`, repairs all master iPads to `Room=100 / In-Harrow`, writes a verified synthetic attendance marker during the attendance window.
-7. Attendance Email addresses must resolve to valid iPads in `Harrow-All-iPads`; missing/ambiguous Email matches fail safely.
+7. Attendance Email addresses must resolve to valid iPads in `Harrow-All-iPads`; unmatched emails are skipped with warnings by default; ambiguous matches still fail safely.
 8. Master group device count is protected by configurable minimum/maximum thresholds.
 9. Smart Group membership is polled after updates until verification succeeds or times out.
 10. `reconcile` runs periodically to repair drift or recover from a server restart/missed timer.
@@ -221,7 +221,7 @@ student014@harrowschool.ac.th
 
 At 08:20 (and on immediate reconcile after a same-day upload), the privileged controller reads current Jamf Mobile Device Inventory for `Harrow-All-iPads`, builds an in-memory Email -> Serial index from `emailAddress`, and resolves each absent Email to its iPad before applying `Room = 200` / `Out-Harrow`. The source CSV therefore remains human/attendance-system friendly while Room updates still use the resolved iPad Serial internally.
 
-Production default is `attendance.email_match_policy = "unique"`: every absent Email must resolve to exactly one iPad in `Harrow-All-iPads`. An Email that is missing from inventory or matches multiple master iPads causes that attendance import to fail safely rather than guessing a device. An optional `all_matches` policy exists for environments that intentionally assign multiple iPads to one Email.
+Production default is `attendance.email_match_policy = "unique"`: every matched absent Email must resolve to exactly one iPad in `Harrow-All-iPads`. Unmatched emails are skipped with warnings by default (`attendance.unmatched_email_policy = "skip"`); set this to `"error"` for strict rejection. Multiple matches still cause the import to fail under `unique`. An optional `all_matches` policy exists for environments that intentionally assign multiple iPads to one Email.
 
 If nobody is absent, a header-only file is still supported:
 
@@ -277,7 +277,7 @@ The username is normalized to lowercase, duplicates are rejected, and no service
 3. Select Attendance Date. Today is the default.
 4. Drag/drop or browse to any `.csv` filename. The user does not need to rename it.
 5. The Portal normalizes supported Email headers (`Email Address`, `email_address`, `Email`, `emailaddress`, `user_email`, `student_email`) and removes duplicate Email addresses case-insensitively.
-6. The queue importer performs authoritative live validation against Jamf: it scans current inventory for `Harrow-All-iPads`, resolves every Email to an iPad Serial, blocks missing/ambiguous matches, and only then writes the canonical attendance file.
+6. The queue importer performs authoritative live validation against Jamf: it scans current inventory for `Harrow-All-iPads`, resolves every Email to an iPad Serial, warns and skips unmatched emails, blocks ambiguous matches, and only then writes the canonical attendance file.
 7. An existing attendance file for the same date is archived before replacement.
 8. Uploads for today between 08:20–15:59 on a school day automatically trigger `reconcile`; uploads before 08:20 wait for the normal scheduler; uploads after 16:00 are recorded without changing that day's Jamf state.
 
@@ -471,7 +471,7 @@ Run preflight, read master/current group membership, set all master devices In-H
 
 ### 08:20 attendance
 
-Read today's `absent-YYYY-MM-DD.csv`, resolve emails to master iPads, validate matches and absence safety limits, combine absences with manual overrides, repair Room values, verify group membership, and write the attendance SHA-256 marker. Under production `zero_absent` policy, a missing file means zero absences; malformed or unresolved files still fail.
+Read today's `absent-YYYY-MM-DD.csv`, resolve emails to master iPads, validate matches and absence safety limits, combine absences with manual overrides, repair Room values, verify group membership, and write the attendance SHA-256 marker. Under production `zero_absent` policy, a missing file means zero absences; malformed files still fail; unmatched emails are skipped by default.
 
 ### 16:00 school end
 
@@ -539,6 +539,7 @@ Production configuration:
 "attendance": {
   "identity_field": "email_address",
   "email_match_policy": "unique",
+  "unmatched_email_policy": "skip",
   "inventory_page_size": 100
 },
 "safety": {
@@ -551,7 +552,7 @@ The controller queries `/api/v2/mobile-devices/detail` using the `GENERAL` and `
 Resolution outcomes:
 
 - **1 matching master iPad**: use that Serial and make it `Room = 200`.
-- **0 matches**: fail the attendance import/reconcile and report the Email.
+- **0 matches**: warn and skip the Email; continue applying matched absences. Explicit `unmatched_email_policy="error"` restores rejection.
 - **More than 1 match** with `unique`: fail and report all matching Serials.
 - **More than 1 match** with `all_matches`: all matching master iPads become `Room = 200`.
 
@@ -712,3 +713,29 @@ set +a
 ### Recommended operating rule
 
 Use **Absent Students** for a student who is absent for the day. Use **Device Override** for an exception that occurs during the day. This keeps Attendance as the normal source of truth while preserving an explicit, auditable intra-day override.
+
+
+### Unmatched attendance emails and live upgrade
+
+The skip policy applies equally to portal uploads and direct copies to
+`/opt/harrow-timebase/attendance/absent-YYYY-MM-DD.csv`. Direct copies are picked
+up at the next scheduled reconciliation; copying does not itself start a job.
+Transfer to a temporary filename in that directory, then rename it to the final
+filename so reconciliation cannot read an incomplete upload.
+
+The canonical CSV retains all submitted emails. Partial resolutions are recorded
+with their unmatched emails and are never reused as a cache hit: later runs
+retry inventory resolution even if the CSV has not changed. Fully resolved
+files retain the existing cache behavior. Portal status/history show skipped
+counts, and the status page and controller journal list skipped emails.
+If every email is unmatched, zero devices are considered absent, with a warning;
+manual overrides still apply. Inventory coverage, absence fraction, malformed
+CSV, ambiguous matches under `unique`, and Jamf write checks remain enforced.
+
+Run `sudo bash apply-hotfix.sh` from a separate checkout of this version on the
+existing R4 server. It validates the policy before pausing jobs, backs up runtime
+and configuration, drains active jobs, replaces code, and resumes the services
+and timers. No server reboot is needed; the portal briefly restarts. Existing
+config/env files, credentials, accounts and session keys are preserved exactly.
+An omitted `attendance.unmatched_email_policy` now defaults to `skip`; an explicit
+`error` remains strict. The hotfix keeps its existing rollback behavior.
