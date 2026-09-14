@@ -98,12 +98,12 @@ def main():
         overrides.parent.mkdir(parents=True, exist_ok=True)
         overrides.write_text('{"overrides": {}}\n')
         attendance.write_text('email_address\n'+''.join(snapshot[s]['email']+'\n' for s in sorted(absent)))
-        for value, expected in [('07:59',0),('08:00',5),('08:19',5),('08:20',3)]:
+        for value, expected in [('07:59',0),('08:00',5),('08:09',5),('08:10',3)]:
             clock(value)
             c.reconcile()
             check(value, expected)
         before = len(writes)
-        for value in ('09:20','10:20'):
+        for value in ('09:10','14:00'):
             clock(value)
             c.reconcile()
             check(value,3)
@@ -127,11 +127,11 @@ def main():
         c.reconcile()
         check('16:00',0)
         weekend = day + timedelta(days=(5-day.weekday()) % 7)
-        clock('10:20', weekend)
+        clock('14:00', weekend)
         c.reconcile()
         check('weekend',0)
         holiday = next(iter(c.holiday_map()))
-        clock('10:20',holiday)
+        clock('14:00',holiday)
         c.reconcile()
         check('holiday',0)
     except Exception as exc:

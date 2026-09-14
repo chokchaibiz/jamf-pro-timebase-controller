@@ -32,7 +32,7 @@ sudo journalctl -u harrow-attendance-import.service -u harrow-device-query.servi
 
 # Harrow Jamf Pro TimeBase Controller + Attendance Upload Portal — Production Implementation
 
-> This release provides a browser-based TimeBase Upload Portal for both **Absent Students** and **Holiday Calendar**, application login, a systemd queue importer, automatic validation/archive, and immediate Jamf reconcile for same-day attendance uploads between 08:20–15:59.
+> This release provides a browser-based TimeBase Upload Portal for both **Absent Students** and **Holiday Calendar**, application login, a systemd queue importer, automatic validation/archive, and immediate Jamf reconcile for same-day attendance uploads between 08:10–15:59.
 
 This bundle implements the following desired state without The MUT:
 
@@ -50,18 +50,18 @@ This bundle implements the following desired state without The MUT:
 | Bangkok time on school days | Desired state |
 |---|---|
 | Before 08:00 | All Room=200 / Out-Harrow |
-| 08:00–08:19 | Room=100 / In-Harrow, except active manual Out-Harrow overrides |
-| 08:20–15:59 | Attendance plus manual overrides: absent/overridden Room=200, others Room=100 |
+| 08:00–08:09 | Room=100 / In-Harrow, except active manual Out-Harrow overrides |
+| 08:10–15:59 | Attendance plus manual overrides: absent/overridden Room=200, others Room=100 |
 | 16:00 onward | All Room=200 / Out-Harrow; clear manual overrides |
 
-Reconciliation runs every day at **:00 and :30**, approximately three minutes after boot, and additionally Monday–Friday at **09:20 and 10:20**. Holiday runs maintain Out-Harrow. Calendar timers use Bangkok time, one-second accuracy and no randomized delay. System load and active jobs can delay actual execution. Missed calendar occurrences are not replayed (`Persistent=false`); the boot run repairs current state.
+Reconciliation runs every day at **:00 and :30**, approximately three minutes after boot, and additionally Monday–Friday at **09:10 and 14:00**. Holiday runs maintain Out-Harrow. Calendar timers use Bangkok time, one-second accuracy and no randomized delay. System load and active jobs can delay actual execution. Missed calendar occurrences are not replayed (`Persistent=false`); the boot run repairs current state.
 
 ## Safety decisions
 
 1. API concurrency defaults to **4** and configuration rejects values over 5.
 2. Room updates are **idempotent**: only devices not already in the desired Smart Group are PUT.
 3. API requests use retry + exponential backoff for transient failures.
-4. A process lock prevents overlapping 08:00/08:20/16:00/reconcile jobs.
+4. A process lock prevents overlapping 08:00/08:10/16:00/reconcile jobs.
 5. Wi-Fi management is disabled by default; the optional future implementation retains its attendance guard.
 6. Production policy is `missing_attendance_policy = "zero_absent"`. If today’s `absent-YYYY-MM-DD.csv` is missing, the controller does **not** fail: it treats `Absent = 0`, repairs all master iPads to `Room=100 / In-Harrow`, writes a verified synthetic attendance marker during the attendance window.
 7. Attendance Email addresses must resolve to valid iPads in `Harrow-All-iPads`; unmatched emails are skipped with warnings by default; ambiguous matches still fail safely.
@@ -219,7 +219,7 @@ student001@harrowschool.ac.th
 student014@harrowschool.ac.th
 ```
 
-At 08:20 (and on immediate reconcile after a same-day upload), the privileged controller reads current Jamf Mobile Device Inventory for `Harrow-All-iPads`, builds an in-memory Email -> Serial index from `emailAddress`, and resolves each absent Email to its iPad before applying `Room = 200` / `Out-Harrow`. The source CSV therefore remains human/attendance-system friendly while Room updates still use the resolved iPad Serial internally.
+At 08:10 (and on immediate reconcile after a same-day upload), the privileged controller reads current Jamf Mobile Device Inventory for `Harrow-All-iPads`, builds an in-memory Email -> Serial index from `emailAddress`, and resolves each absent Email to its iPad before applying `Room = 200` / `Out-Harrow`. The source CSV therefore remains human/attendance-system friendly while Room updates still use the resolved iPad Serial internally.
 
 Production default is `attendance.email_match_policy = "unique"`: every matched absent Email must resolve to exactly one iPad in `Harrow-All-iPads`. Unmatched emails are skipped with warnings by default (`attendance.unmatched_email_policy = "skip"`); set this to `"error"` for strict rejection. Multiple matches still cause the import to fail under `unique`. An optional `all_matches` policy exists for environments that intentionally assign multiple iPads to one Email.
 
@@ -243,7 +243,7 @@ Run:
 sudo bash install-program.sh
 ```
 
-The installer installs Python dependencies, Nginx, the FastAPI Portal, application login, upload queue/importer, systemd units, and the existing TimeBase controller. It enables only the Portal and attendance queue automatically; the 08:00/08:20/16:00 Jamf timers remain disabled until pilot validation is complete.
+The installer installs Python dependencies, Nginx, the FastAPI Portal, application login, upload queue/importer, systemd units, and the existing TimeBase controller. It enables only the Portal and attendance queue automatically; the 08:00/08:10/16:00 Jamf timers remain disabled until pilot validation is complete.
 
 At the end of a first installation it prints:
 
@@ -279,7 +279,7 @@ The username is normalized to lowercase, duplicates are rejected, and no service
 5. The Portal normalizes supported Email headers (`Email Address`, `email_address`, `Email`, `emailaddress`, `user_email`, `student_email`) and removes duplicate Email addresses case-insensitively.
 6. The queue importer performs authoritative live validation against Jamf: it scans current inventory for `Harrow-All-iPads`, resolves every Email to an iPad Serial, warns and skips unmatched emails, blocks ambiguous matches, and only then writes the canonical attendance file.
 7. An existing attendance file for the same date is archived before replacement.
-8. Uploads for today between 08:20–15:59 on a school day automatically trigger `reconcile`; uploads before 08:20 wait for the normal scheduler; uploads after 16:00 are recorded without changing that day's Jamf state.
+8. Uploads for today between 08:10–15:59 on a school day automatically trigger `reconcile`; uploads before 08:10 wait for the normal scheduler; uploads after 16:00 are recorded without changing that day's Jamf state.
 
 For a zero-absence day, use **No Absent Students Today**. It creates a header-only CSV and a user-attributed audit record.
 
@@ -423,8 +423,8 @@ Dry-run reads Jamf and prints the writes it would perform, but does not PUT Room
 Before 2,000 devices, temporarily use a pilot Static Group and safety range, for example 5–20 devices. Validate:
 
 1. At 08:00, confirm pilot devices move In-Harrow, except manual overrides.
-2. At 08:20, confirm attendance moves absent devices Out-Harrow.
-3. Check same-day Portal imports after 08:20 trigger immediate reconciliation.
+2. At 08:10, confirm attendance moves absent devices Out-Harrow.
+3. Check same-day Portal imports after 08:10 trigger immediate reconciliation.
 4. At 16:00, confirm all devices move Out-Harrow and overrides clear.
 5. Confirm Wi-Fi profile scope stays unchanged throughout.
 
@@ -458,9 +458,10 @@ Check schedules:
 ```bash
 systemctl list-timers 'harrow-timebase*'
 systemd-analyze calendar 'Mon..Fri *-*-* 08:00:00 Asia/Bangkok'
-systemd-analyze calendar 'Mon..Fri *-*-* 08:20:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 08:10:00 Asia/Bangkok'
 systemd-analyze calendar '*-*-* *:00,30:00 Asia/Bangkok'
-systemd-analyze calendar 'Mon..Fri *-*-* 09,10:20:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 09:10:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 14:00:00 Asia/Bangkok'
 ```
 
 ## 12. Exact workflow
@@ -469,7 +470,7 @@ systemd-analyze calendar 'Mon..Fri *-*-* 09,10:20:00 Asia/Bangkok'
 
 Run preflight, read master/current group membership, set all master devices In-Harrow except active manual Out-Harrow overrides, and verify Smart Group membership.
 
-### 08:20 attendance
+### 08:10 attendance
 
 Read today's `absent-YYYY-MM-DD.csv`, resolve emails to master iPads, validate matches and absence safety limits, combine absences with manual overrides, repair Room values, verify group membership, and write the attendance SHA-256 marker. Under production `zero_absent` policy, a missing file means zero absences; malformed files still fail; unmatched emails are skipped by default.
 
@@ -477,11 +478,11 @@ Read today's `absent-YYYY-MM-DD.csv`, resolve emails to master iPads, validate m
 
 Set all master devices Out-Harrow, verify membership, and clear overrides.
 
-The daily entry points reconcile **current time** after acquiring the controller lock. A delayed 08:00 job cannot undo attendance after 08:20, and a delayed attendance job cannot restore school-day state after 16:00. Jobs sharing 08:00 or 16:00 are serialized by the existing lock; if lock wait expires, later reconciliation can retry.
+The daily entry points reconcile **current time** after acquiring the controller lock. A delayed 08:00 job cannot undo attendance after 08:10, and a delayed attendance job cannot restore school-day state after 16:00. Jobs sharing 08:00 or 16:00 are serialized by the existing lock; if lock wait expires, later reconciliation can retry.
 
 ## 13. Reconciliation
 
-`harrow-timebase-reconcile.timer` uses calendar scheduling at every :00 and :30, plus `OnBootSec=3min`. `harrow-timebase-reconcile-extra.timer` adds 09:20 and 10:20 Monday–Friday. Both target the same oneshot service, so systemd does not start a second instance of that service while it is running. Calendar slots are scheduled starts, not a guarantee that Jamf work completes at that time.
+`harrow-timebase-reconcile.timer` uses calendar scheduling at every :00 and :30, plus `OnBootSec=3min`. `harrow-timebase-reconcile-extra.timer` adds 09:10 and 14:00 Monday–Friday. Both target the same oneshot service, so systemd does not start a second instance of that service while it is running. Calendar slots are scheduled starts, not a guarantee that Jamf work completes at that time.
 
 Desired state follows the Daily state table above. Reconciliation on weekends and holidays sets all devices Out-Harrow. Wi-Fi profile management is disabled. Operations are idempotent: a correct state causes reads/verification without repeating all device writes.
 
@@ -508,7 +509,7 @@ Recommended rollout gates:
 3. 100 device controlled pilot.
 4. 500 device load validation.
 5. Full ~2,000 device master group.
-6. Observe at least one full 08:00 → 08:20 → 16:00 lifecycle.
+6. Observe at least one full 08:00 → 08:10 → 16:00 lifecycle.
 7. Confirm Wi-Fi scope has not changed.
 
 ## 16. Rollback / emergency commands
@@ -578,7 +579,7 @@ Behavior on a school day when `/opt/harrow-timebase/attendance/absent-YYYY-MM-DD
 6. Write `attendance-YYYY-MM-DD.ok.json` using a deterministic synthetic SHA-256 marker for the missing-file/zero-absence state.
 7. Wi-Fi scope remains unchanged; management is disabled.
 
-If a valid absent CSV appears later, the next `attendance` or reconcile run during 08:20–15:59 reads the real file, applies the actual absent list to `Room = 200`, rewrites the marker with the real file SHA-256, and verifies the corrected state.
+If a valid absent CSV appears later, the next `attendance` or reconcile run during 08:10–15:59 reads the real file, applies the actual absent list to `Room = 200`, rewrites the marker with the real file SHA-256, and verifies the corrected state.
 
 ## 18. Device Override tab — Live Email Address Search and force Out-Harrow
 
@@ -739,3 +740,7 @@ and timers. No server reboot is needed; the portal briefly restarts. Existing
 config/env files, credentials, accounts and session keys are preserved exactly.
 An omitted `attendance.unmatched_email_policy` now defaults to `skip`; an explicit
 `error` remains strict. The hotfix keeps its existing rollback behavior.
+
+The extra 14:00 trigger overlaps the regular :00 run. Both timers target the same
+reconcile service; simultaneous triggers coalesce into one service activation.
+The attendance timer at 08:10 runs attendance, not the retained legacy Wi-Fi action.

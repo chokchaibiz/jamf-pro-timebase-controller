@@ -4,7 +4,7 @@
 Actions:
   preflight  - Validate Jamf objects, group criteria, scope, credentials and local data.
   school-start - 08:00 timer entry point; reconcile current state if delayed.
-  attendance - 08:20 timer entry point; reconcile current state if delayed.
+  attendance - 08:10 timer entry point; reconcile current state if delayed.
   0810       - Legacy Wi-Fi action; disabled by default and no longer scheduled.
   1600       - 16:00 timer entry point; reconcile current state if delayed.
   reconcile  - Calculate desired state from Bangkok local date/time and repair drift idempotently.

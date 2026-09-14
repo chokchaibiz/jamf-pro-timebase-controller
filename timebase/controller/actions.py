@@ -352,7 +352,7 @@ class ControllerActionsMixin:
         if t < dtime(8, 0):
             self.set_wifi_scope(False, enforce_attendance_guard=False)
             self.set_all_out()
-        elif t < dtime(8, 20):
+        elif t < dtime(8, 10):
             self.set_wifi_scope(False, enforce_attendance_guard=False)
             self.set_all_in()
         elif t < dtime(16, 0):

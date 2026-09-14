@@ -140,6 +140,42 @@ class HotfixTests(unittest.TestCase):
             self.assertEqual(json.loads((root/'state.json').read_text())[NEW[-1]],state[NEW[-1]])
             self.assertEqual(before,{p.name:p.read_bytes() for p in config.iterdir()})
 
+    def test_existing_schedule_upgrade_and_rollback(self):
+        for fail in (False, True):
+            with self.subTest(rollback=fail), TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                target, config, units, prior, runner = self.setup_server(root)
+                for unit in OLD:
+                    (units/unit).unlink()
+                    prior.pop(unit)
+                for unit in NEW:
+                    (units/unit).write_bytes((ROOT/'systemd'/unit).read_bytes())
+                    prior[unit] = {'enabled':'enabled', 'active':'active'}
+                attendance = units/'harrow-timebase-attendance.timer'
+                attendance.write_text(attendance.read_text().replace('08:10', '08:20'))
+                extra = units/'harrow-timebase-reconcile-extra.timer'
+                extra.write_text(extra.read_text().replace(
+                    'OnCalendar=Mon..Fri *-*-* 09:10:00 Asia/Bangkok\nOnCalendar=Mon..Fri *-*-* 14:00:00 Asia/Bangkok',
+                    'OnCalendar=Mon..Fri *-*-* 09,10:20:00 Asia/Bangkok'))
+                old_units = {u: (units/u).read_bytes() for u in NEW+KEEP}
+                before_config = {p.name: p.read_bytes() for p in config.iterdir()}
+                (root/'state.json').write_text(json.dumps(prior))
+                if fail: (root/'fail-once').touch()
+                self.run_hotfix(root, runner, success=not fail)
+                self.assertEqual(before_config, {p.name: p.read_bytes() for p in config.iterdir()})
+                state = json.loads((root/'state.json').read_text())
+                for unit in NEW+KEEP:
+                    self.assertEqual(state[unit], prior[unit])
+                    expected = old_units[unit] if fail else (ROOT/'systemd'/unit).read_bytes()
+                    self.assertEqual((units/unit).read_bytes(), expected)
+                commands = (root/'commands.log').read_text().splitlines()
+                self.assertIn('daemon-reload', commands)
+                self.assertFalse(any('nginx' in command or 'reboot' in command for command in commands))
+                if not fail:
+                    self.assertLess(commands.index('daemon-reload'), commands.index('start harrow-timebase-attendance.timer'))
+                    for module in ('timebase/controller/actions.py', 'timebase/importer/handlers.py'):
+                        self.assertEqual((target/module).read_bytes(), (ROOT/module).read_bytes())
+
     def test_disabled_pilot_remains_disabled(self):
         with TemporaryDirectory() as tmp:
             root=Path(tmp)

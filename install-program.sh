@@ -324,7 +324,7 @@ cat <<'MSG'
 
 Portal and upload queue are running now.
 The first connection may show a browser warning because the installer creates a self-signed TLS certificate. Replace it with an organization-trusted certificate for normal production use.
-Core Jamf 08:00/08:20/16:00 timers are NOT enabled automatically.
+Core Jamf 08:00/08:10/16:00 timers are NOT enabled automatically.
 
 RECOMMENDED NEXT STEPS:
   1. Sign in and immediately change the default password for every portal account.

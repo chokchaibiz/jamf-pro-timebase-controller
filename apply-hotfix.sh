@@ -314,3 +314,5 @@ echo "Wi-Fi management defaults OFF. No reboot required."
 echo "If resuming a unit fails, fix it and start that unit; do not restore code while jobs are running."
 
 echo "Attendance: unmatched emails default to skip; an explicit attendance.unmatched_email_policy=error remains strict."
+
+echo "Bangkok schedule: school start 08:00; attendance 08:10; extra reconcile 09:10/14:00; regular reconcile :00/:30; end of day 16:00."

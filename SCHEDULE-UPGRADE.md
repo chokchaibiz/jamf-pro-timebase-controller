@@ -1,6 +1,6 @@
 # Live schedule upgrade
 
-All schedules use Asia/Bangkok. School start is 08:00, attendance 08:20, end of day 16:00. Reconcile runs daily at :00/:30, approximately three minutes after boot, and Monday–Friday at 09:20/10:20. Holidays stay Out-Harrow. Wi-Fi management is disabled by default.
+All schedules use Asia/Bangkok. School start is 08:00, attendance 08:10, end of day 16:00. Reconcile runs daily at :00/:30, approximately three minutes after boot, and Monday–Friday at 09:10/14:00. Holidays stay Out-Harrow. Wi-Fi management is disabled by default.
 
 ## Deployment
 
@@ -23,7 +23,7 @@ Old timer migration:
 | Old timer | Replacement |
 |---|---|
 | `harrow-timebase-0700.timer` | `harrow-timebase-school-start.timer` at 08:00 |
-| `harrow-timebase-0800.timer` | `harrow-timebase-attendance.timer` at 08:20 |
+| `harrow-timebase-0800.timer` | `harrow-timebase-attendance.timer` at 08:10 |
 | `harrow-timebase-0810.timer` | Removed; Wi-Fi deferred |
 | `harrow-timebase-reconcile.timer` | Same name, now clock-aligned |
 | None | `harrow-timebase-reconcile-extra.timer`, initially inherits reconcile timer state |
@@ -38,17 +38,18 @@ Enabled and running states are migrated independently. Disabled/stopped pilot ti
 systemctl list-timers --all 'harrow-timebase*'
 systemctl status harrow-attendance-portal.service harrow-device-query.service harrow-attendance-import.path
 systemd-analyze calendar '*-*-* *:00,30:00 Asia/Bangkok'
-systemd-analyze calendar 'Mon..Fri *-*-* 09,10:20:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 09:10:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 14:00:00 Asia/Bangkok'
 sudo journalctl -u harrow-timebase-reconcile.service -n 80 --no-pager
 ```
 
 Starting the updated reconcile timer on a server already up for more than three minutes can immediately trigger its boot catch-up run.
 
-The old 07:00/08:00/08:10 timers should be gone. New school-start/attendance timers should show 08:00/08:20. The server may display NEXT in its local timezone even though the calendar expressions use Bangkok time.
+The old 07:00/08:00/08:10 timers should be gone. New school-start/attendance timers should show 08:00/08:10. The server may display NEXT in its local timezone even though the calendar expressions use Bangkok time.
 
 `:00` and `:30` are scheduled start times with one-second accuracy and no jitter. Work can start late under load or while another job holds the controller lock. Same-service triggers coalesce while that service runs. Daily actions calculate current state after obtaining the lock, so a late school-start run does not overwrite attendance. `Persistent=false` avoids replaying missed calendar slots; the boot reconciliation repairs current state.
 
-Portal imports for today's school day reconcile immediately from 08:20 until before 16:00. Direct attendance CSV copies are read on the next scheduled run; there is no new directory watcher. Use a temporary filename followed by an atomic rename after transfer completes.
+Portal imports for today's school day reconcile immediately from 08:10 until before 16:00. Direct attendance CSV copies are read on the next scheduled run; there is no new directory watcher. Use a temporary filename followed by an atomic rename after transfer completes.
 
 ## Failure and recovery
 
@@ -63,3 +64,7 @@ For a later manual rollback, first stop all current TimeBase timers, the upload 
 3. Run `systemctl daemon-reload`, restore enabled/running states from `unit-state.txt`, and verify logs and next runs.
 
 Do not restore configuration snapshots unless a separate config change needs reversal. Do not overwrite runtime while jobs are active. Rollback does not reverse Jamf changes already completed by a job.
+
+The extra 14:00 trigger overlaps the regular :00 run. Both timers target the same
+reconcile service; simultaneous triggers coalesce into one service activation.
+The attendance timer at 08:10 runs attendance, not the retained legacy Wi-Fi action.
