@@ -1,8 +1,9 @@
 [Unit]
-Description=Harrow TimeBase additional reconciliation at 09:20 and 10:20 Bangkok
+Description=Harrow TimeBase additional reconciliation at 09:10 and 14:00 Bangkok
 
 [Timer]
-OnCalendar=Mon..Fri *-*-* 09,10:20:00 Asia/Bangkok
+OnCalendar=Mon..Fri *-*-* 09:10:00 Asia/Bangkok
+OnCalendar=Mon..Fri *-*-* 14:00:00 Asia/Bangkok
 AccuracySec=1s
 RandomizedDelaySec=0
 Persistent=false

@@ -19,7 +19,7 @@ from timebase.importer.handlers import JobContext, handle_attendance
 TZ = ZoneInfo('Asia/Bangkok')
 
 class ScheduleTests(unittest.TestCase):
-    def controller(self, clock='08:20', school=True):
+    def controller(self, clock='08:10', school=True):
         c = TimeBaseController.__new__(TimeBaseController)
         c.cfg = {}
         c.logger = logging.getLogger('schedule-test')
@@ -32,8 +32,8 @@ class ScheduleTests(unittest.TestCase):
 
     def test_boundaries_and_extra_runs(self):
         for clock, expected in [('07:00','set_all_out'), ('07:59:59','set_all_out'),
-            ('08:00','set_all_in'), ('08:19:59','set_all_in'), ('08:20','apply_attendance'),
-            ('09:20','apply_attendance'), ('10:20','apply_attendance'),
+            ('08:00','set_all_in'), ('08:09:59','set_all_in'), ('08:10','apply_attendance'),
+            ('09:10','apply_attendance'), ('14:00','apply_attendance'),
             ('15:59:59','apply_attendance'), ('16:00','set_all_out'), ('23:59','set_all_out')]:
             with self.subTest(clock=clock):
                 c = self.controller(clock)
@@ -44,7 +44,7 @@ class ScheduleTests(unittest.TestCase):
                 self.assertEqual(c.jamf.mock_calls, [])
 
     def test_holiday_and_weekend_state(self):
-        for clock in ('08:00','08:20','09:20','16:00'):
+        for clock in ('08:00','08:10','09:10','14:00','16:00'):
             c = self.controller(clock, school=False)
             c.reconcile()
             c.set_all_out.assert_called_once()
@@ -52,7 +52,7 @@ class ScheduleTests(unittest.TestCase):
             self.assertEqual(c.jamf.mock_calls, [])
 
     def test_delayed_jobs_apply_current_phase(self):
-        c = self.controller('08:21')
+        c = self.controller('08:11')
         c.action_school_start()
         c.apply_attendance.assert_called_once()
         c.set_all_in.assert_not_called()
@@ -105,15 +105,19 @@ class ScheduleTests(unittest.TestCase):
         from configparser import ConfigParser
         expected = {
             'school-start': ('Mon..Fri *-*-* 08:00:00 Asia/Bangkok', 'harrow-timebase@school-start.service'),
-            'attendance': ('Mon..Fri *-*-* 08:20:00 Asia/Bangkok', 'harrow-timebase@attendance.service'),
+            'attendance': ('Mon..Fri *-*-* 08:10:00 Asia/Bangkok', 'harrow-timebase@attendance.service'),
             'reconcile': ('*-*-* *:00,30:00 Asia/Bangkok', 'harrow-timebase-reconcile.service'),
-            'reconcile-extra': ('Mon..Fri *-*-* 09,10:20:00 Asia/Bangkok', 'harrow-timebase-reconcile.service'),
+            'reconcile-extra': ('Mon..Fri *-*-* 09:10:00 Asia/Bangkok\nMon..Fri *-*-* 14:00:00 Asia/Bangkok', 'harrow-timebase-reconcile.service'),
         }
         for name, (calendar, unit) in expected.items():
             parser = ConfigParser()
-            parser.read(ROOT / f'systemd/harrow-timebase-{name}.timer')
+            path = ROOT / f'systemd/harrow-timebase-{name}.timer'
+            lines = path.read_text().splitlines()
+            calendars = [line.removeprefix('OnCalendar=') for line in lines if line.startswith('OnCalendar=')]
+            self.assertEqual('\n'.join(calendars), calendar)
+            # systemd supports repeated OnCalendar keys; ConfigParser does not.
+            parser.read_string('\n'.join(line for line in lines if not line.startswith('OnCalendar=')))
             timer = parser['Timer']
-            self.assertEqual(timer['OnCalendar'], calendar)
             self.assertEqual(timer['Unit'], unit)
             self.assertEqual(timer['AccuracySec'], '1s')
             self.assertEqual(timer['RandomizedDelaySec'], '0')
@@ -149,9 +153,9 @@ class ScheduleTests(unittest.TestCase):
             with self.assertRaises(ConfigError): load_config(path)
 
     def test_portal_trigger_window_and_dates(self):
-        cases = [('08:00',True,0,False),('08:19:59',True,0,False),('08:20',True,0,True),
-                 ('15:59:59',True,0,True),('16:00',True,0,False),('09:20',False,0,False),
-                 ('09:20',True,-1,False),('09:20',True,1,False)]
+        cases = [('08:00',True,0,False),('08:09:59',True,0,False),('08:10',True,0,True),
+                 ('15:59:59',True,0,True),('16:00',True,0,False),('09:10',False,0,False),
+                 ('09:10',True,-1,False),('09:10',True,1,False)]
         from datetime import timedelta
         for clock, school, offset, should_run in cases:
             for action in ('upload','zero_absent'):

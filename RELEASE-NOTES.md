@@ -1,3 +1,9 @@
+# September 14 schedule update
+
+- Attendance and same-day portal reconciliation begin at 08:10 Bangkok time.
+- Extra weekday reconciliation runs at 09:10 and 14:00; regular :00/:30 runs remain.
+- Existing R4 installations can apply the complete bundle with `apply-hotfix.sh`, without rebooting and with config/auth and timer state preserved.
+
 ## Schedule update — 2026-09-10
 
 - School start moves to 08:00 and attendance to 08:20 Bangkok time.
