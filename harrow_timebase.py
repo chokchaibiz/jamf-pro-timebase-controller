@@ -612,7 +612,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reason", default="", help="Optional manual override reason")
     parser.add_argument(
         "action",
-        choices=["preflight", "school-start", "attendance", "0810", "1600", "reconcile", "verify", "wifi-on", "wifi-off", "manual-out", "manual-clear"],
+        choices=["preflight", "school-start", "attendance", "0810", "1600", "reconcile", "reconcile-regular", "verify", "wifi-on", "wifi-off", "manual-out", "manual-clear"],
     )
     return parser.parse_args()
 
@@ -637,6 +637,8 @@ def main() -> int:
                 controller.action_0810()
             elif args.action == "1600":
                 controller.action_1600()
+            elif args.action == "reconcile-regular":
+                controller.reconcile_regular()
             elif args.action == "reconcile":
                 controller.reconcile()
             elif args.action == "verify":

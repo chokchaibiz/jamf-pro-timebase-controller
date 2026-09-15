@@ -54,7 +54,7 @@ This bundle implements the following desired state without The MUT:
 | 08:10–15:59 | Attendance plus manual overrides: absent/overridden Room=200, others Room=100 |
 | 16:00 onward | All Room=200 / Out-Harrow; clear manual overrides |
 
-Reconciliation runs every day at **:00 and :30**, approximately three minutes after boot, and additionally Monday–Friday at **09:10 and 14:00**. Holiday runs maintain Out-Harrow. Calendar timers use Bangkok time, one-second accuracy and no randomized delay. System load and active jobs can delay actual execution. Missed calendar occurrences are not replayed (`Persistent=false`); the boot run repairs current state.
+Regular reconciliation runs at **:00 and :30 outside Monday–Friday 08:00–16:00**, and **all day Saturday–Sunday**. Extra reconciliation runs Monday–Friday at **09:10 and 14:00**. The regular boot trigger (three minutes after boot) also skips the weekday 08:00–15:59 window. Holiday runs maintain Out-Harrow. Calendar timers use Bangkok time, one-second accuracy and no randomized delay. System load and active jobs can delay actual execution. Missed calendar occurrences are not replayed (`Persistent=false`); the boot run repairs current state outside the weekday exclusion window.
 
 ## Safety decisions
 
@@ -459,7 +459,8 @@ Check schedules:
 systemctl list-timers 'harrow-timebase*'
 systemd-analyze calendar 'Mon..Fri *-*-* 08:00:00 Asia/Bangkok'
 systemd-analyze calendar 'Mon..Fri *-*-* 08:10:00 Asia/Bangkok'
-systemd-analyze calendar '*-*-* *:00,30:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 00..07,16..23:00,30:00 Asia/Bangkok'
+systemd-analyze calendar 'Sat,Sun *-*-* *:00,30:00 Asia/Bangkok'
 systemd-analyze calendar 'Mon..Fri *-*-* 09:10:00 Asia/Bangkok'
 systemd-analyze calendar 'Mon..Fri *-*-* 14:00:00 Asia/Bangkok'
 ```
@@ -482,7 +483,7 @@ The daily entry points reconcile **current time** after acquiring the controller
 
 ## 13. Reconciliation
 
-`harrow-timebase-reconcile.timer` uses calendar scheduling at every :00 and :30, plus `OnBootSec=3min`. `harrow-timebase-reconcile-extra.timer` adds 09:10 and 14:00 Monday–Friday. Both target the same oneshot service, so systemd does not start a second instance of that service while it is running. Calendar slots are scheduled starts, not a guarantee that Jamf work completes at that time.
+`harrow-timebase-reconcile.timer` schedules :00/:30 in weekday hours 00–07 and 16–23 and all weekend hours, plus `OnBootSec=3min`. It targets `harrow-timebase@reconcile-regular.service`, whose CLI action skips weekday 08:00–15:59 after acquiring the controller lock, before preflight/Jamf calls. `harrow-timebase-reconcile-extra.timer` runs 09:10 and 14:00 Monday–Friday through the unrestricted `harrow-timebase-reconcile.service`. Separate controller jobs share the existing lock. Calendar slots are scheduled starts, not a guarantee that Jamf work completes at that time.
 
 Desired state follows the Daily state table above. Reconciliation on weekends and holidays sets all devices Out-Harrow. Wi-Fi profile management is disabled. Operations are idempotent: a correct state causes reads/verification without repeating all device writes.
 
@@ -741,6 +742,15 @@ config/env files, credentials, accounts and session keys are preserved exactly.
 An omitted `attendance.unmatched_email_policy` now defaults to `skip`; an explicit
 `error` remains strict. The hotfix keeps its existing rollback behavior.
 
-The extra 14:00 trigger overlaps the regular :00 run. Both timers target the same
-reconcile service; simultaneous triggers coalesce into one service activation.
+Only the extra timer schedules reconciliation at 14:00 on weekdays. Regular
+reconciliation is excluded during that window; weekend regular checks still run all day.
 The attendance timer at 08:10 runs attendance, not the retained legacy Wi-Fi action.
+
+A weekday direct CSV replacement at 10:00 waits until the 14:00 extra run unless
+an operator triggers unrestricted reconciliation. After 14:00 there is no further
+scheduled attendance application that day: the 16:00 action sets all devices Out.
+Same-day school-day portal uploads still reconcile immediately from 08:10 until
+before 16:00. Failed attendance/extra jobs have fewer automatic retries during
+school hours. A job already running before 08:00 is allowed to finish; the guard
+does not terminate active Jamf work. Weekday holidays use the same restricted
+regular schedule; remaining weekday actions still apply holiday Out-Harrow state.

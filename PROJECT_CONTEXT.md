@@ -69,7 +69,7 @@ Implemented in `timebase/controller/actions.py`, with date/calendar helpers in `
 
 Weekends and dates in the holiday calendar stay Out-Harrow. Preflight requires a valid, nonempty calendar even for actions on a weekend. School-start, attendance, and 1600 CLI actions all call `reconcile()` so delayed invocations do not replay the wrong phase.
 
-`systemd/harrow-timebase-school-start.timer`, `harrow-timebase-attendance.timer`, and `harrow-timebase-1600.timer` schedule weekday 08:00, 08:10, 16:00 starts. `harrow-timebase-reconcile.timer` adds daily :00/:30 and three minutes after boot; `harrow-timebase-reconcile-extra.timer` adds weekday 09:10/14:00. Calendars specify Asia/Bangkok and `Persistent=false`. The explicit extra 14:00 slot overlaps regular :00 scheduling; both target the same service. Triggers of the same running service coalesce; other controller instances serialize at the file lock. A scheduled time does not promise completion or execution while the host sleeps.
+`systemd/harrow-timebase-school-start.timer`, `harrow-timebase-attendance.timer`, and `harrow-timebase-1600.timer` schedule weekday 08:00, 08:10, 16:00 starts. Regular reconciliation schedules :00/:30 in weekday hours 00–07 and 16–23, and all weekend hours, plus three minutes after boot. Its timer targets `harrow-timebase@reconcile-regular.service`; the `reconcile-regular` CLI action skips Monday–Friday 08:00–15:59 after acquiring the lock and before preflight/Jamf calls. This also covers weekday holidays and delayed/boot runs. Extra weekday 09:10/14:00 runs retain `harrow-timebase-reconcile.service` and unrestricted `reconcile`; portal/manual and daily actions remain unrestricted. There is no regular 14:00 weekday slot. Calendars use Asia/Bangkok and `Persistent=false`. Separate controller jobs serialize at the file lock; an already-running job is not interrupted at 08:00. Scheduled times are starts, not completion guarantees.
 
 Preflight checks the static master group, smart In/Out groups, Room criteria, master count bounds, and ASSURE target/exclusion. Shipped names are `Harrow-All-iPads`, `In-Harrow`, `Out-Harrow`; Room values are strings `100` and `200`. ASSURE is inspected, not edited. Its target must include In-Harrow and its exclusions Out-Harrow. Smart-group criterion checks look for the expected Room name/value; they do not exhaustively validate operators, additional criteria, or all profile scope semantics.
 
@@ -132,7 +132,7 @@ State root defaults to `/var/lib/harrow-timebase`. Atomic file replacement preve
 | Job UI | GET `/status/{job_id}`, `/history`; all above feature routes require a session |
 | Health/static | Public GET `/healthz` and `/static/*`; health is process liveness, not full Jamf/queue readiness |
 | Broker | GET `/search?email=...`, `/device/{serial}` require `X-Internal-Token`; GET `/healthz` is public on loopback; `device_query_service.py` |
-| Controller CLI | `preflight`, `school-start`, `attendance`, `1600`, `reconcile`, `verify`, `manual-out`, `manual-clear`, retained `0810`, `wifi-on`, `wifi-off`; `harrow_timebase.py` |
+| Controller CLI | `preflight`, `school-start`, `attendance`, `1600`, `reconcile`, `reconcile-regular`, `verify`, `manual-out`, `manual-clear`, retained `0810`, `wifi-on`, `wifi-off`; `harrow_timebase.py` |
 | Jamf authentication | POST `/api/v1/oauth/token`, client_credentials; cached bearer tokens with early refresh and a token lock |
 | Jamf inventory | GET `/api/v2/mobile-devices/detail`; Classic `/JSSResource/mobiledevices/...` match, serial/id and subset reads |
 | Jamf groups/profiles | Classic `/JSSResource/mobiledevicegroups` and `/mobiledeviceconfigurationprofiles`, plus `/id/{id}` reads; device Room PUT by serial and optional profile XML PUT |
@@ -251,9 +251,10 @@ systemctl status harrow-attendance-portal.service harrow-device-query.service ha
 systemctl list-timers --all 'harrow-timebase*'
 curl -fsS http://127.0.0.1:8090/healthz
 curl -fsS http://127.0.0.1:8091/healthz
-sudo journalctl -u harrow-attendance-import.service -u harrow-timebase-reconcile.service -n 100 --no-pager
+sudo journalctl -u harrow-timebase@reconcile-regular.service -u harrow-attendance-import.service -u harrow-timebase-reconcile.service -n 100 --no-pager
 sudo nginx -t
-systemd-analyze calendar '*-*-* *:00,30:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 00..07,16..23:00,30:00 Asia/Bangkok'
+systemd-analyze calendar 'Sat,Sun *-*-* *:00,30:00 Asia/Bangkok'
 systemd-analyze calendar 'Mon..Fri *-*-* 09:10:00 Asia/Bangkok'
 systemd-analyze calendar 'Mon..Fri *-*-* 14:00:00 Asia/Bangkok'
 ```

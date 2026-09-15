@@ -335,6 +335,19 @@ class ControllerActionsMixin:
         self.logger.info("Current state: %s", json.dumps(status, sort_keys=True))
         return status
 
+    def reconcile_regular(self) -> None:
+        """Guard regular/boot runs after CLI lock acquisition; other callers are unrestricted."""
+        now = self.now()
+        t = now.time().replace(tzinfo=None)
+        if now.weekday() < 5 and dtime(8, 0) <= t < dtime(16, 0):
+            self.logger.info(
+                "Skipping regular reconciliation at %s: weekday 08:00-16:00 window; "
+                "daily actions, extra runs and portal reconciliation remain enabled",
+                now.isoformat(),
+            )
+            return
+        self.reconcile()
+
     def reconcile(self, *, preflight: bool = True) -> None:
         if preflight:
             self.preflight()

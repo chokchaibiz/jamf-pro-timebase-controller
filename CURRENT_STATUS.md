@@ -1,3 +1,27 @@
+# Regular reconciliation window — 2026-09-15
+
+Implemented and verified on `codex/reconcile-outside-school-hours`, based on `main` at `4758383`. This release contains the reconciliation change and related documentation/tests; consult Git history and remote refs for publication state. No server deployment was performed. The pre-existing untracked AI-DEVELOPMENT-GUIDE.md and its local-work status entry below are preserved outside the release.
+
+- Regular timer calendars now run at :00/:30 in weekday hours 00–07 and 16–23 and all day Saturday/Sunday. Extra weekday 09:10/14:00 and daily 08:00/08:10/16:00 actions are unchanged.
+- Regular timer (including its three-minute boot trigger) targets the existing `harrow-timebase@.service` template with a new `reconcile-regular` CLI action. The action checks local weekday/time after acquiring the controller lock and skips weekday 08:00–15:59 before preflight/Jamf access. The restriction includes weekday holidays. Already-running work is allowed to finish.
+- Extra runs keep the unrestricted reconcile service. Portal/manual reconciliation remains unrestricted; direct CSV copies have fewer scheduled application/retry opportunities during school hours. The regular 14:00 weekday slot no longer exists.
+- No new runtime modules or config settings. Installers/hotfix already ship the template and controller files and drain template jobs. Hotfix migration tests now cover restoring the old full-day regular timer/target on failure, installing the new target/template on success, and preserving timer/config/auth state.
+- Updated README copies, SCHEDULE-UPGRADE.md, release notes and PROJECT_CONTEXT.md; AGENTS.md working rules unchanged.
+
+Verification complete: all seven mocked hotfix migration tests passed on Ubuntu 24.04 / Python 3.12, including their nested nine portable offline scripts. The schedule suite now has 13 tests covering all weekdays/weekends, exact exclusion boundaries, weekday holidays, delayed lock acquisition, CLI dispatch, separate timer targets and unchanged portal/daily flows. Linux systemd calendar calculations confirm the next weekday regular run after 07:30 is 16:00 and weekend half-hourly slots. All three shell syntax checks and git diff --check pass. The macOS run had seven script passes and two dependency failures (missing Jinja2/FastAPI); both scripts subsequently passed in the restored Linux virtualenv. No real wall-clock timer firing or live Jamf operation was tested. Mocked hotfix tests do not establish production service/sandbox behavior. Both `harrow-offline-schedule-check` and the Jamf-connected `harrow-scheduler-test` VM are stopped. No production deployment, queues, or timer activation occurred.
+
+Environment note: macOS /usr/bin/git is blocked by the Xcode license state; the installed CommandLineTools Git binary works and was used without changing license settings.
+
+---
+
+# AI development guide — 2026-09-14
+
+Added `AI-DEVELOPMENT-GUIDE.md` as a reusable project-specific reference with the three-file workflow, task/acceptance criteria, copy-ready prompts, offline versus live testing limits, Git/release steps, hotfix deployment boundaries, and handoff/documentation maintenance. This is a documentation-only change on `main` after `4758383`; no application behavior changed. Not committed, pushed, or deployed by this task.
+
+Verification: checked local Markdown link targets, code-fence balance, consistency with repository test/deployment instructions, and whitespace. Application tests were not rerun for this documentation-only task. AGENTS.md and PROJECT_CONTEXT.md remain unchanged; the historical stash is preserved.
+
+---
+
 # Schedule update — 2026-09-14
 
 Schedule feature committed as `8edab47` on `codex/attendance-0810-schedule`, merged into `main` as `9bc3f99`, and both branches pushed to GitHub on 2026-09-14. Current checkout is `main`; the feature branch is preserved. Not deployed to a server by this task.

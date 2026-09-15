@@ -46,6 +46,7 @@ if cmd == 'daemon-reload' and (root/'fail-once').exists():
 if cmd == 'list-units':
     if (root/'busy-once').exists():
         print('harrow-timebase-reconcile.service loaded activating start')
+        print('harrow-timebase@reconcile-regular.service loaded activating start')
         (root/'busy-once').unlink()
     sys.exit(0)
 for u in units:
@@ -157,6 +158,10 @@ class HotfixTests(unittest.TestCase):
                 extra.write_text(extra.read_text().replace(
                     'OnCalendar=Mon..Fri *-*-* 09:10:00 Asia/Bangkok\nOnCalendar=Mon..Fri *-*-* 14:00:00 Asia/Bangkok',
                     'OnCalendar=Mon..Fri *-*-* 09,10:20:00 Asia/Bangkok'))
+                regular = units/'harrow-timebase-reconcile.timer'
+                regular.write_text('[Unit]\nDescription=Previous regular timer\n[Timer]\n'
+                    'OnBootSec=3min\nOnCalendar=*-*-* *:00,30:00 Asia/Bangkok\n'
+                    'Unit=harrow-timebase-reconcile.service\n[Install]\nWantedBy=timers.target\n')
                 old_units = {u: (units/u).read_bytes() for u in NEW+KEEP}
                 before_config = {p.name: p.read_bytes() for p in config.iterdir()}
                 (root/'state.json').write_text(json.dumps(prior))
@@ -170,10 +175,14 @@ class HotfixTests(unittest.TestCase):
                     self.assertEqual((units/unit).read_bytes(), expected)
                 commands = (root/'commands.log').read_text().splitlines()
                 self.assertIn('daemon-reload', commands)
+                self.assertTrue(any('harrow-timebase@*.service' in command for command in commands if command.startswith('list-units')))
                 self.assertFalse(any('nginx' in command or 'reboot' in command for command in commands))
                 if not fail:
                     self.assertLess(commands.index('daemon-reload'), commands.index('start harrow-timebase-attendance.timer'))
-                    for module in ('timebase/controller/actions.py', 'timebase/importer/handlers.py'):
+                    self.assertIn('Unit=harrow-timebase@reconcile-regular.service', regular.read_text())
+                    for service in ('harrow-timebase@.service', 'harrow-timebase-reconcile.service'):
+                        self.assertEqual((units/service).read_bytes(), (ROOT/'systemd'/service).read_bytes())
+                    for module in ('harrow_timebase.py', 'timebase/controller/actions.py', 'timebase/importer/handlers.py'):
                         self.assertEqual((target/module).read_bytes(), (ROOT/module).read_bytes())
 
     def test_disabled_pilot_remains_disabled(self):

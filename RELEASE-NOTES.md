@@ -1,3 +1,9 @@
+# September 15 regular reconciliation window
+
+- Regular :00/:30 checks run outside weekday 08:00–16:00 and throughout weekends.
+- A guarded `reconcile-regular` CLI/template-service path also skips boot and delayed regular runs during that window before Jamf access.
+- Daily actions, extra 09:10/14:00 runs, and portal/manual reconciliation remain unrestricted. Existing R4 hotfix preserves config/auth/timer state without rebooting.
+
 # September 14 schedule update
 
 - Attendance and same-day portal reconciliation begin at 08:10 Bangkok time.
