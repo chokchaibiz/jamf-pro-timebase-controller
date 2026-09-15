@@ -61,6 +61,56 @@ class ScheduleTests(unittest.TestCase):
         c.set_all_out.assert_called_once()
         c.apply_attendance.assert_not_called()
 
+    def test_regular_weekday_guard_and_weekends(self):
+        # Covers all weekdays (including a configured holiday) and both weekend days.
+        from datetime import timedelta
+        for offset in range(7):
+            day = date(2026, 9, 14) + timedelta(days=offset)
+            for clock in ('00:00', '07:59:59', '08:00', '08:10', '09:10', '14:00', '15:59:59', '16:00', '23:59'):
+                with self.subTest(day=day, clock=clock):
+                    c = self.controller(clock, school=False)
+                    instant = datetime.fromisoformat(f'{day}T{clock}').replace(tzinfo=TZ)
+                    c.now = lambda: instant
+                    c.reconcile = Mock()
+                    skipped = offset < 5 and '08:00' <= clock < '16:00'
+                    c.reconcile_regular()
+                    self.assertEqual(c.reconcile.call_count, 0 if skipped else 1)
+                    c.preflight.assert_not_called()
+                    c.is_school_day.assert_not_called()
+                    self.assertEqual(c.jamf.mock_calls, [])
+
+    def test_regular_cli_checks_time_after_lock(self):
+        import harrow_timebase as cli
+        from types import SimpleNamespace
+        c = self.controller('07:59:59')
+        c.reconcile = Mock()
+        lock = Mock()
+        def acquired():
+            # A pre-08:00 job waited on the lock until school hours.
+            c.now = lambda: datetime(2026, 9, 15, 8, 1, tzinfo=TZ)
+        lock.__enter__ = Mock(side_effect=acquired)
+        lock.__exit__ = Mock(return_value=False)
+        args = SimpleNamespace(config='unused', verbose=False, dry_run=False, action='reconcile-regular')
+        cfg = {'paths': {'lock_file':'unused'}, 'performance': {'lock_wait_seconds':1}}
+        with patch.object(cli, 'parse_args', return_value=args), patch.object(cli, 'load_config', return_value=cfg), \
+             patch.object(cli, 'setup_logging', return_value=c.logger), patch.object(cli, 'FileLock', return_value=lock), \
+             patch.object(cli, 'TimeBaseController', return_value=c):
+            self.assertEqual(cli.main(), 0)
+        c.reconcile.assert_not_called()
+        c.preflight.assert_not_called()
+        self.assertEqual(c.jamf.mock_calls, [])
+
+    def test_reconcile_entry_points_are_separate(self):
+        import harrow_timebase as cli
+        with patch.object(sys, 'argv', ['harrow_timebase.py', 'reconcile-regular']):
+            self.assertEqual(cli.parse_args().action, 'reconcile-regular')
+        template = (ROOT/'systemd/harrow-timebase@.service').read_text()
+        self.assertIn('config.json %i', template)
+        extra_service = (ROOT/'systemd/harrow-timebase-reconcile.service').read_text()
+        self.assertIn('config.json reconcile\n', extra_service)
+        # Calendar runs and boot catch-up share the guarded timer target.
+        self.assertIn('OnBootSec=3min', (ROOT/'systemd/harrow-timebase-reconcile.timer').read_text())
+
     def test_disabled_wifi_action_does_nothing(self):
         c = self.controller()
         c.action_0810()
@@ -106,7 +156,7 @@ class ScheduleTests(unittest.TestCase):
         expected = {
             'school-start': ('Mon..Fri *-*-* 08:00:00 Asia/Bangkok', 'harrow-timebase@school-start.service'),
             'attendance': ('Mon..Fri *-*-* 08:10:00 Asia/Bangkok', 'harrow-timebase@attendance.service'),
-            'reconcile': ('*-*-* *:00,30:00 Asia/Bangkok', 'harrow-timebase-reconcile.service'),
+            'reconcile': ('Mon..Fri *-*-* 00..07,16..23:00,30:00 Asia/Bangkok\nSat,Sun *-*-* *:00,30:00 Asia/Bangkok', 'harrow-timebase@reconcile-regular.service'),
             'reconcile-extra': ('Mon..Fri *-*-* 09:10:00 Asia/Bangkok\nMon..Fri *-*-* 14:00:00 Asia/Bangkok', 'harrow-timebase-reconcile.service'),
         }
         for name, (calendar, unit) in expected.items():

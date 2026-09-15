@@ -315,4 +315,5 @@ echo "If resuming a unit fails, fix it and start that unit; do not restore code 
 
 echo "Attendance: unmatched emails default to skip; an explicit attendance.unmatched_email_policy=error remains strict."
 
-echo "Bangkok schedule: school start 08:00; attendance 08:10; extra reconcile 09:10/14:00; regular reconcile :00/:30; end of day 16:00."
+echo "Bangkok schedule: school start 08:00; attendance 08:10; extra reconcile 09:10/14:00; regular reconcile :00/:30 outside weekday 08:00-16:00 (all day weekends); end of day 16:00."
+echo "Regular boot/delayed runs also skip weekday 08:00-16:00. Extra and portal reconciliation remain enabled."

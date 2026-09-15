@@ -1,6 +1,6 @@
 # Live schedule upgrade
 
-All schedules use Asia/Bangkok. School start is 08:00, attendance 08:10, end of day 16:00. Reconcile runs daily at :00/:30, approximately three minutes after boot, and Monday–Friday at 09:10/14:00. Holidays stay Out-Harrow. Wi-Fi management is disabled by default.
+All schedules use Asia/Bangkok. School start is 08:00, attendance 08:10, end of day 16:00. Regular reconciliation runs at :00/:30 before 08:00 and from 16:00 on weekdays, and all day on weekends. Extra runs remain Monday–Friday at 09:10/14:00. The three-minute boot trigger skips weekday 08:00–15:59. Holidays stay Out-Harrow. Wi-Fi management is disabled by default.
 
 ## Deployment
 
@@ -25,7 +25,7 @@ Old timer migration:
 | `harrow-timebase-0700.timer` | `harrow-timebase-school-start.timer` at 08:00 |
 | `harrow-timebase-0800.timer` | `harrow-timebase-attendance.timer` at 08:10 |
 | `harrow-timebase-0810.timer` | Removed; Wi-Fi deferred |
-| `harrow-timebase-reconcile.timer` | Same name, now clock-aligned |
+| `harrow-timebase-reconcile.timer` | Same name; restricted calendar and guarded template-service target |
 | None | `harrow-timebase-reconcile-extra.timer`, initially inherits reconcile timer state |
 
 Enabled and running states are migrated independently. Disabled/stopped pilot timers are not automatically enabled/started. Repeat runs preserve the replacement timers' own states. The 16:00 timer is retained. Check the output to confirm your intended production timers are active; an already-enabled but stopped timer remains stopped.
@@ -37,17 +37,18 @@ Enabled and running states are migrated independently. Disabled/stopped pilot ti
 ```bash
 systemctl list-timers --all 'harrow-timebase*'
 systemctl status harrow-attendance-portal.service harrow-device-query.service harrow-attendance-import.path
-systemd-analyze calendar '*-*-* *:00,30:00 Asia/Bangkok'
+systemd-analyze calendar 'Mon..Fri *-*-* 00..07,16..23:00,30:00 Asia/Bangkok'
+systemd-analyze calendar 'Sat,Sun *-*-* *:00,30:00 Asia/Bangkok'
 systemd-analyze calendar 'Mon..Fri *-*-* 09:10:00 Asia/Bangkok'
 systemd-analyze calendar 'Mon..Fri *-*-* 14:00:00 Asia/Bangkok'
-sudo journalctl -u harrow-timebase-reconcile.service -n 80 --no-pager
+sudo journalctl -u harrow-timebase@reconcile-regular.service -u harrow-timebase-reconcile.service -n 80 --no-pager
 ```
 
-Starting the updated reconcile timer on a server already up for more than three minutes can immediately trigger its boot catch-up run.
+Starting the updated reconcile timer on a server already up for more than three minutes can immediately trigger its boot catch-up run. The guarded action logs a successful skip during weekday 08:00–15:59, including weekday holidays.
 
 The old 07:00/08:00/08:10 timers should be gone. New school-start/attendance timers should show 08:00/08:10. The server may display NEXT in its local timezone even though the calendar expressions use Bangkok time.
 
-`:00` and `:30` are scheduled start times with one-second accuracy and no jitter. Work can start late under load or while another job holds the controller lock. Same-service triggers coalesce while that service runs. Daily actions calculate current state after obtaining the lock, so a late school-start run does not overwrite attendance. `Persistent=false` avoids replaying missed calendar slots; the boot reconciliation repairs current state.
+`:00` and `:30` are scheduled start times with one-second accuracy and no jitter. Work can start late under load or while another job holds the controller lock. Same-service triggers coalesce while that service runs. Daily actions calculate current state after obtaining the lock, so a late school-start run does not overwrite attendance. `Persistent=false` avoids replaying missed calendar slots; the boot reconciliation repairs current state outside the weekday exclusion window.
 
 Portal imports for today's school day reconcile immediately from 08:10 until before 16:00. Direct attendance CSV copies are read on the next scheduled run; there is no new directory watcher. Use a temporary filename followed by an atomic rename after transfer completes.
 
@@ -65,6 +66,22 @@ For a later manual rollback, first stop all current TimeBase timers, the upload 
 
 Do not restore configuration snapshots unless a separate config change needs reversal. Do not overwrite runtime while jobs are active. Rollback does not reverse Jamf changes already completed by a job.
 
-The extra 14:00 trigger overlaps the regular :00 run. Both timers target the same
-reconcile service; simultaneous triggers coalesce into one service activation.
+Only the extra timer schedules reconciliation at 14:00 on weekdays. Regular
+reconciliation is excluded during that window; weekend regular checks still run all day.
 The attendance timer at 08:10 runs attendance, not the retained legacy Wi-Fi action.
+
+The regular timer now targets the existing `harrow-timebase@.service` template with
+the `reconcile-regular` action. Both installers and the hotfix already deploy that
+template and the full controller runtime. Hotfix job draining includes template
+instances and the unrestricted reconcile service. No config edit or new service
+enablement is needed. Keep the regular timer enabled for overnight/weekend checks;
+a previously stopped/disabled timer stays stopped/disabled after hotfix.
+
+A weekday direct CSV replacement at 10:00 waits until the 14:00 extra run unless
+an operator triggers unrestricted reconciliation. After 14:00 there is no further
+scheduled attendance application that day: the 16:00 action sets all devices Out.
+Same-day school-day portal uploads still reconcile immediately from 08:10 until
+before 16:00. Failed attendance/extra jobs have fewer automatic retries during
+school hours. A job already running before 08:00 is allowed to finish; the guard
+does not terminate active Jamf work. Weekday holidays use the same restricted
+regular schedule; remaining weekday actions still apply holiday Out-Harrow state.
